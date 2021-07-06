@@ -1,0 +1,134 @@
+https://hackaday.io/project/180322
+
+# project's name (50 characters)
+ESP32 Small Alarm Clock
+
+# summarize your project (140 characters)
+Small alarm clock using ESP32 module, 0.96" OLED panel and small speaker.
+
+# describe your project (1000 characters)
+This is a small alarm clock which wakes me up every morning.
+This can also tell time with button push.
+Clock is synchronized with NTP protocol over WiFi.
+To make this as small as I can, I omitted enclosure and made the PCBs into a box.
+
+Power source is a 400mAh LiPo battery. Battery can be charged via USB.
+To save energy, device is usually in deep sleep state and display is off.
+
+# Details
+<p>This is successive project of <a href="http://ktmizugaki.so.land.to/ele/wifi_voice_clock.htm">http://ktmizugaki.so.land.to/ele/wifi_voice_clock.htm</a> .<br>While that clock is working perfectly for two years, I broke LCD and decided to upgrade project instead of replacing broken LCD.</p>
+
+<p>The challenge for me is using OLED. I also tried to fix some of broblems and reduced width slightly.</p>
+
+<p><strong>featrues</strong></p>
+
+<ul>
+<li>Wakeup Alarm at configured time</li>
+<li>Synchronize clock with NTP protocol over WiFi</li>
+<li>Say time with button push</li>
+<li>Show clock with button push</li>
+<li>Support LiPo battery and can charge battery</li>
+<li>Deep sleep to reduce power consumption</li>
+<li>Check battery to prevent complete discharge</li>
+<li>Web UI for configuring clock</li>
+</ul>
+
+<p><strong>structure</strong></p>
+
+<p>Clock consists of 7 boards.</p>
+
+<ol>
+<li>MCU boards<br>This board is center of clock, enclosed by other six boards.<br>ESP32 module, 3.3V regulator, 32768Hz crystal.</li>
+<li>PSU board<br>This board is bottom panel and has power related components.<br>PH connector for battery, mini B USB connector, charger IC and charge indicator LEDs</li>
+<li>IO board<br>This board is top panel with switches and a speaker.<br>Also it has resistors to measure input voltage.</li>
+<li>display board<br>This board is front panel with OLED dislay.<br>I added two LEDs to just fill space.</li>
+<li>two side panels<br>These boards connects PSU board and MCU board (both electrically and physically)</li>
+<li>back panel<br>Just a panel, no circuit on this board but has holes so that USART and reset circuit can be connected to MCU board.</li>
+</ol>
+
+# Components
+1x ESP32-SOLO-1
+1x 0.96" OLED panel
+1x Small Speaker
+
+# Logs
+## Fixed display board
+<p>I fixed display board and satisfied with layout. I hope this will be good this time.</p>
+<figure><img src="https://cdn.hackaday.io/images/3283271625487399428.png" data-image="1625487399841"></figure>
+<p>And it's about time to order a speaker...</p>
+<p>While waiting for new parts arrive, I'll start conding using almost working object here.</p>
+<figure><img src="https://cdn.hackaday.io/images/5985241625487926255.jpg" data-image="1625487926889" style="width: 320px; height: 226px;" width="320" height="226"></figure>
+<p>My plan is, when first powered up, the clock becomes an AP and user sets SSID and password via Web UI. So first thing I need to implement is:</p>
+<ul>
+<li>Put SSID/password of clock AP on display</li>
+<li>HTTP server and HTMLs</li>
+</ul>
+
+## Make OLED work
+<p>I solderd OLED FPC cable to board. Then connected it to ESP32 dev baord and nothing happend.</p>
+<figure><img src="https://cdn.hackaday.io/images/139851624973004731.jpg" data-image="1624973005672"></figure>
+<p>I was depressed and didn't know what to do next. All what came up is checking datasheet and checking voltage of each pin.</p>
+<p>When I compared pin table of datasheet and schematic, it turns out the symbol I used is not for my OLED panel.<br>Guessing from pin names, it seems like I referenced SH1106 version when I created the symbol.</p>
+<figure><img src="https://cdn.hackaday.io/images/3327651624973154117.png" data-image="1624973154629" style="width: 298px; height: 289px;" width="298" height="289"></figure>
+<p>I was able to patch circuit and now it works. Pins marked with red needs to be connected to GND and green pins are connected to GND, I added jumper cable to connect them </p>
+<figure><img src="https://cdn.hackaday.io/images/1056881624973547380.jpg" data-image="1624973547921"></figure>
+<figure><img src="https://cdn.hackaday.io/images/8051861624973194270.jpg" data-image="1624973194835"></figure>
+
+## 2 in 1 PCB
+<p>One thing I am concerning about ordering PCB is minimum quantity is usually 5 but I only need 1 clock, and remaining 4 boards will be unused.</p>
+<p>So I tried to reduce unused boards by creating 2 in 1 PCB.<br>Since this clock is rectangular box, each opposite panel has same dimensions and I combined each opposite pair of panels to single panel.<br>This theoretically reduces unused materials by roughly 60% when measured by area.</p>
+<figure><img src="https://cdn.hackaday.io/images/5841021624628633454.png" data-image="1624628633894"></figure>
+<p>I also made the MCU board as minimal and exposed as many pins as possible so that the board possibly be used for future projects.</p>
+<p></p>
+<p>Well, in the rea world, PCB manufacturer send me 8 wrong thickness boards and 8 correctly remade boards.<br>Now I have 14 unused PCBs. lol</p>
+
+# Instructions
+## Cut PCB
+<p>First of all, cut PCB along white line.</p>
+<figure><img class="lazy" src="https://cdn.hackaday.io/images/859411624190915152.jpg"></figure>
+<p>Below is separeted and arranged boards</p>
+<figure><img class="lazy" src="https://cdn.hackaday.io/images/6843131624190945206.jpg"></figure>
+
+## MCU board
+<p>Solder ESP32 module, decaps and reset circuit for EN pin on top of board.</p>
+<figure><img class="lazy" src="https://cdn.hackaday.io/images/6599341624284163181.jpg"></figure>
+<p>Solder 3.3V regulator, 32768Hz clock crystal, capacitors and pin socket to program ESP32 at bottom of board</p>
+<figure><img class="lazy" src="https://cdn.hackaday.io/images/791941624284427504.jpg"></figure>
+<p>I could't find SMD right angled pin socket of this size, I bent leg of socket so that it looks as if a SMD socket.</p>
+<figure>bent-leg</figure>
+<p>then solder pinheader at left and right side. Remaining pad to solder pin socket to connect front panel will be soldered lator.</p>
+<p>Now you can check if ESP32 works.</p>
+
+## IO board
+<p>Solder registers, capacitor and transistor at bottom of board.</p>
+<figure><img src="https://cdn.hackaday.io/images/1466081624371578978.jpg" data-image="1624371579566"></figure>
+<p>Solder switches and pull-up resisters on top of board.</p>
+<p>Cut leg of sockets to slightly less than board thickness before soldering so that the leg does not scratch fingers.</p>
+<figure><img src="https://cdn.hackaday.io/images/7271211624371566553.jpg" data-image="1624371567166"></figure>
+<p>I covered unused pads with tape so that they don't interact with speaker when I placed on.<br>Remaining pad is for the speaker I haven't decided what to use.</p>
+
+## PSU board
+<p>It would be better to solder the USB mini-B socket first. This socket is only for power and signal pis are not connected.<br>The leg of the socket is hiding under housing and I could not hand solder it well :-(</p>
+<p>Then solder charger IC (MCP73831) and other registers, capacitors and LEDs.</p>
+<p>Then solder PH socket for battery, and pin sockets at left and right sides<br>Note to cut leg of pin sockets just like done for IO board, but different reason - I am going to add rubber foot at bottom of the board.</p>
+<figure><img src="https://cdn.hackaday.io/images/9523641624451917163.jpg" data-image="1624451917939"></figure>
+<p>Solder right angle pin header at bottom. This is used as power switch.</p>
+<figure><img src="https://cdn.hackaday.io/images/9505691624451939418.jpg" data-image="1624451940090"></figure>
+<p>Adhere rubber foot with double-sided tape. This fits nicely and hides pads!</p>
+<figure><img src="https://cdn.hackaday.io/images/2947461625312701510.jpg" data-image="1625312702297"></figure>
+
+## side-panels
+<p>Side panels are simple. Just place parts precisely or it might not build up well. I taped it to do so.</p>
+<figure><img src="https://cdn.hackaday.io/images/1957381624539698769.jpg" data-image="1624539699399"></figure>
+
+## back panel
+<p>There is no component to be soldered to back panel.<br>But I filled unused TH with solder. Also solder 4 bars.</p>
+<figure><img src="https://cdn.hackaday.io/images/2240841625311363242.jpg" data-image="1625311363723"></figure>
+
+## Adding holders
+<p>front/back panels are not connected strongly. So I needs to add bars to support panels are fixed.</p>
+<p>Add 8 valleys to top/bottom boards along straight silk marks where bars of front/back panels to be inserted.</p>
+<figure><img src="https://cdn.hackaday.io/images/2495131625312842331.jpg"></figure>
+<p>Below picture is when I done adding valleys to top board for back panel.</p>
+<figure><img src="https://cdn.hackaday.io/images/1977981625312886834.jpg" data-image="1625312887473"></figure>
+<figure><img src="https://cdn.hackaday.io/images/2483571625312910053.jpg" data-image="1625312910586"></figure>

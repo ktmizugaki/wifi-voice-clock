@@ -1,0 +1,14 @@
+menu "Simple WiFi"
+config SWIFI_MAX_AP_CONFS
+    int "AP conf count"
+    default 3
+    help
+        Number of access points that can be added.
+
+config SWIFI_SOFTAP_IP
+    string "SoftAP IP"
+    default "192.168.4.1"
+    help
+        IP address of ESP32 when acting as Soft AP.
+        Net mask is always 255.255.255.0.
+endmenu

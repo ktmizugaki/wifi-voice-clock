@@ -14,6 +14,7 @@
  */
 
 #include <stdbool.h>
+#include <string.h>
 #include <time.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -39,17 +40,30 @@ static enum app_mode handle_initial(void)
     return APP_MODE_INITIAL;
 }
 
-void app_main(void)
+static esp_err_t app_init_nvs(void)
 {
+#if NVS_KEY_SIZE != 32
+#error unsupported NVS_KEY_SIZE
+#endif
+    extern const uint8_t nvskey_dat[] asm("_binary_nvskey_dat_start");
     esp_err_t err;
+    nvs_sec_cfg_t cfg;
+    memcpy(&cfg, nvskey_dat, NVS_KEY_SIZE*2);
 
-    ESP_LOGD(TAG, "Started");
-
-    err = ESP_ERROR_CHECK_WITHOUT_ABORT( nvs_flash_init() );
+    /* this is not secure without flash encryption */
+    err = nvs_flash_secure_init(&cfg);
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK( nvs_flash_erase() );
-        ESP_ERROR_CHECK( nvs_flash_init() );
+        err = nvs_flash_secure_init(&cfg);
     }
+    return err;
+}
+
+void app_main(void)
+{
+    ESP_LOGD(TAG, "Started");
+
+    ESP_ERROR_CHECK( app_init_nvs() );
 
     setenv("TZ", "JST-9", 1);
     tzset();

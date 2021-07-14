@@ -1,3 +1,7 @@
 menu "WiFi Voice Clock"
 
+config NVS_ENCRYPTION
+    bool "Enable NVS encryption"
+    default y
+
 endmenu

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <title>WiFi設定</title>
+    <link rel="stylesheet" href="/cmn.css">
+    <script src="/cmn.js"></script>
+    <script>
+      "use strict";
+      function myfetch(path, params) {
+        return cmn.req(location.href+'/'+path, params).then(function(res) {
+          return res.json();
+        });
+      }
+
+      function draw_aps(json) {
+        if (json.status === 1) {
+          var tbody = cmn.el('aps-body');
+          tbody.innerHTML = '';
+
+          for (var i = 0; i < json.aps.length; i++) {
+            var ap = json.aps[i];
+            cmn.tmpl(['tr',{},
+              ['td',{},ap.ssid],
+              ['td',{},ap.use_static_ip?ap.ip:'DHCP'],
+              ['td',{},ap.ntp],
+              ['td',{},
+                ['button',{click:open_add_ap.bind(null,ap)},'編集'],' ',
+                ['button',{click:delete_ap.bind(null,ap.ssid)},'削除']],
+            ], tbody);
+          }
+        } else {
+          /* TODO: show error message */
+        }
+      }
+
+      function get_aps() {
+        myfetch("aps").then(draw_aps);
+      }
+
+      function add_ap(form) {
+        var use_static_ip = cmn.val(form, 'ipmode') === 'static';
+        var names = 'ssid password ntp'+(use_static_ip?' ip gateway netmask':'');
+        var params = cmn.build(form, names.split(' '));
+        params['use_static_ip'] = use_static_ip;
+        myfetch("aps", {method: 'POST',body:cmn.qstr(params)}).then(function(json){
+          alert(json.message);
+          if (json.status === 1) {
+            cmn.modal('add-ap', false);
+            get_aps();
+          }
+        });
+      }
+
+      function delete_ap(ssid) {
+        if (confirm(ssid+'を削除しますか?')) {
+          myfetch("aps", {method: 'DELETE',body:cmn.qstr({ssid:ssid})}).then(function(json){
+            alert(json.message);
+            get_aps();
+          });
+        }
+      }
+
+      function open_add_ap(obj) {
+        var form = cmn.el('add-ap');
+        form.reset();
+        cmn.el('ipmode').value = 'dhcp';
+        cmn.show('static-ip', false);
+        if (typeof obj==='string') {
+          cmn.val(form, 'ssid', obj);
+        } else if (typeof obj==='object') {
+          cmn.val(form, 'ssid', obj.ssid);
+          cmn.val(form, 'ntp', obj.ntp);
+          if (obj.use_static_ip) {
+            cmn.val(form, 'ipmode', 'static');
+            cmn.show('static-ip', true);
+            cmn.val(form, 'ip', obj.ip);
+            cmn.val(form, 'gateway', obj.gateway);
+            cmn.val(form, 'netmask', obj.netmask);
+          }
+        }
+        cmn.modal(form, true);
+      }
+
+      let scanning = false;
+      function draw_scan(json) {
+        var s0 = json.status === 0, s1 = json.status === 1, s2 = json.status === 2,
+          l = s2 && json.records.length;
+        var shown = (s2 && l !== 0);
+        cmn.el('req-scan').disabled = s1;
+        cmn.show('scanning', s1);
+        cmn.show('noscan', (s0 && scanning) || (s2 && l === 0));
+        cmn.show('scans', shown);
+        if (s1) {
+          scanning = true;
+        }
+        if (scanning) {
+          cmn.modal('scan', true);
+        }
+        if (scanning && shown) {
+          var tbody = cmn.el('scans-body');
+          tbody.innerHTML = '';
+          for (var i = 0; i < l; i++) {
+            var record = json.records[i];
+            cmn.tmpl(['tr',{},
+              ['td',{},record.ssid],
+              ['td',{},record.authmode? record.authmode: 'なし'],
+              ['td',{title:"rssi:"+record.rssi},record.rssi>=-70? '強': '弱'],
+              ['td',{},['button',{click:select_scan.bind(null,record)},'選択']],
+            ], tbody);
+          }
+        }
+        if (s1) {
+          setTimeout(get_scan, 1700);
+        }
+      }
+
+      function select_scan(record) {
+        cmn.modal('scan', false);
+        open_add_ap(record.ssid);
+      }
+
+      function get_scan() {
+        myfetch('scan').then(draw_scan);
+      }
+
+      function req_scan() {
+        scanning = true;
+        myfetch('scan', {method: 'POST'}).then(draw_scan);
+      }
+
+      function doload() {
+        get_scan();
+        get_aps();
+
+        cmn.click('req-scan', req_scan);
+        cmn.click('open-add-ap', function(ev) {
+          open_add_ap();
+        });
+
+        cmn.on('ipmode', 'change', function(ev) {
+          cmn.show('static-ip', this.value !== 'dhcp');
+        });
+        cmn.on('add-ap', 'submit', function(ev) {
+          ev.preventDefault();
+          add_ap(this);
+        });
+        cmn.click('close-add-ap', function(ev) {
+          cmn.modal('add-ap', false);
+        });
+
+        cmn.click('close-noscan', function(ev) {
+          cmn.modal('scan', false);
+        });
+        cmn.click('close-scans', function(ev) {
+          cmn.modal('scan', false);
+        });
+      }
+      cmn.ready(doload);
+    </script>
+  </head>
+  <body>
+    <div>
+      <div class="row">
+        <button id="req-scan" disabled>スキャン</button>
+        <button id="open-add-ap">追加</button>
+      </div>
+      <table class="row">
+        <colgroup><col span="1"><col span="1" style="width:10em;"><col span="1" style="width:10em;"><col span="1" style="width:10em;"></colgroup>
+        <thead><tr><th>SSID</th><th style="">IP</th><th>NTP</th></tr></thead>
+        <tbody id="aps-body"></tbody>
+      </table>
+    </div>
+
+    <form id="add-ap" class="modal hidden" method="POST">
+      <div class="modal-inner">
+        <div class="row">SSID: <input type="text" name="ssid" maxlength="31"></div>
+        <div class="row">パスワード: <input type="password" name="password" maxlength="63"></div>
+        <div class="row">IPアドレス設定：<select id="ipmode" name="ipmode"><option value="dhcp">DHCP</option><option value="static">固定</option></select></div>
+        <div id="static-ip" class="hidden">
+          <div class="row">IPアドレス<input type="text" name="ip" maxlength="15" placeholder="例: 192.168.1.99"></div>
+          <div class="row">GWアドレス<input type="text" name="gateway" maxlength="15" placeholder="例: 192.168.1.1"></div>
+        <div class="row">ネットマスク<input type="text" name="netmask" maxlength="15" placeholder="例: 255.255.255.0" value="255.255.255.0"></div>
+        </div>
+        <div class="row">NTPサーバー: <input type="text" name="ntp" maxlength="15" placeholder="例: 192.168.1.1"></div>
+        <div class="row">
+          <input type="submit" value="登録">
+          <button type="button" id="close-add-ap">キャンセル</button>
+        </div>
+      </div>
+    </form>
+    <div id="scan" class="modal hidden">
+      <div class="modal-inner">
+        <div id="scanning">スキャン中...</div>
+        <div id="noscan">
+          <div class="row">アクセスポイントが見つかりませんでした。</div>
+          <div class="row"><button id="close-noscan">OK</button></div>
+        </div>
+        <div id="scans">
+          <table class="row">
+            <colgroup><col span="1"><col span="1" style="width:6em;"><col span="1" style="width:6em;"><col span="1" style="width:6em;"></colgroup>
+
+            <thead><tr><th>SSID</th><th>暗号化</th><th>強度</th></tr></thead><tbody id="scans-body"></tbody>
+          </table>
+          <div class="row"><button id="close-scans">閉じる</button></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

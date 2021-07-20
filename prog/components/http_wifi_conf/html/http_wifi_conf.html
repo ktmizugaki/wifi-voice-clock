@@ -13,6 +13,51 @@
       function myfetch(path, params) {
         return cmn.req(location.href+'/'+path, params).then(function(res) {
           return res.json();
+        }).catch(function(err) {
+          return {status:-1,message:err.message};
+        });
+      }
+
+      function draw_conn(json) {
+        var s2 = json.status === 2;
+        cmn.show('disconnected', !s2);
+        cmn.show('connected', s2);
+        if (s2) {
+          cmn.el('conn-ssid').innerText = json.ssid;
+          cmn.el('conn-rssi').innerText = json.rssi;
+          cmn.el('conn-ip').innerText = json.ip;
+        }
+        return json;
+      }
+
+      function get_conn() {
+        myfetch('conn').then(draw_conn);
+      }
+
+      function conn_check(json) {
+        if (json.status == 2) {
+          cmn.modal('connecting', false);
+          draw_conn(json);
+          alert(json.message);
+        } else if (json.status == 1) {
+          setTimeout(function() {
+            myfetch('conn').then(conn_check);
+          }, 1200);
+        } else {
+          cmn.modal('connecting', false);
+          alert(json.message);
+        }
+      }
+
+      function connect(ssid) {
+        cmn.modal('connecting', true);
+        myfetch('conn', {method:'POST', body:cmn.qstr({ssid:ssid})}).then(conn_check);
+      }
+
+      function disconnect() {
+        myfetch('conn', {method:'DELETE', body:''}).then(function(json) {
+          alert(json.message);
+          draw_conn({status:0});
         });
       }
 
@@ -27,7 +72,7 @@
               ['td',{},ap.ssid],
               ['td',{},ap.use_static_ip?ap.ip:'DHCP'],
               ['td',{},ap.ntp],
-              ['td',{},
+              ['td',{},['button',{click:connect.bind(null,ap.ssid)},'接続'],' ',
                 ['button',{click:open_add_ap.bind(null,ap)},'編集'],' ',
                 ['button',{click:delete_ap.bind(null,ap.ssid)},'削除']],
             ], tbody);
@@ -135,10 +180,14 @@
       function doload() {
         get_scan();
         get_aps();
+        get_conn();
 
         cmn.click('req-scan', req_scan);
         cmn.click('open-add-ap', function(ev) {
           open_add_ap();
+        });
+        cmn.click('disconn', function(ev) {
+          disconnect();
         });
 
         cmn.on('ipmode', 'change', function(ev) {
@@ -174,6 +223,16 @@
         <tbody id="aps-body"></tbody>
       </table>
     </div>
+    <div>
+      <div id="disconnected" class="row hidden">WiFi未接続</div>
+      <div id="connected" class="hidden">
+        <div class="row">WiFi接続</div>
+        <div class="row">SSID: <span id="conn-ssid"></span></div>
+        <div class="row">RSSI: <span id="conn-rssi"></span></div>
+        <div class="row">IP: <span id="conn-ip"></span></div>
+        <button id="disconn">切断</button>
+      </div>
+    </div>
 
     <form id="add-ap" class="modal hidden" method="POST">
       <div class="modal-inner">
@@ -208,6 +267,9 @@
           <div class="row"><button id="close-scans">閉じる</button></div>
         </div>
       </div>
+    </div>
+    <div id="connecting" class="modal hidden">
+      <div class="vcenter"><div class="row center"><span class="kurukuru kurukuru-large"></span><br>接続中...</div></div>
     </div>
   </body>
 </html>

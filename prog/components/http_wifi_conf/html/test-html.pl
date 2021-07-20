@@ -20,6 +20,7 @@ require "$cmn_path/test-html.pl";
 my $scan_req_count = 0;
 my $max_ap = 3;
 my @aps = ();
+my $conn = undef;
 
 sub find_ap {
     my ($ssid) = @_;
@@ -95,6 +96,39 @@ sub wifi_conf_handler {
             $json = '{"status":1,"message":"Removed ap '.$params{ssid}.'"}';
         } else {
             $json = '{"status":0,"message":"Unknown ap '.$params{ssid}.'"}';
+        }
+        my $res = json_response($json);
+        $c->send_response($res);
+        return $res;
+    } elsif ($req->method eq 'GET' && $req->uri->path eq '/wifi_conf/conn') {
+        my $json;
+        if ($conn) {
+            $json = '{"status":2,"ssid":"'.$conn.'","rssi":-70,"ip":"192.168.1.10","message":"Connected to ap '.$conn.'"}';
+        } else {
+            $json = '{"status":0}';
+        }
+        my $res = json_response($json);
+        $c->send_response($res);
+        return $res;
+    } elsif ($req->method eq 'POST' && $req->uri->path eq '/wifi_conf/conn') {
+        my %params = parse_query($req->decoded_content);
+        my $json;
+        if ($params{ssid}) {
+            $conn = $params{ssid};
+            $json = '{"status":1,"message":"Connecting"}';
+        } else {
+            $json = '{"status":0,"message":"Missing params"}';
+        }
+        my $res = json_response($json);
+        $c->send_response($res);
+        return $res;
+    } elsif ($req->method eq 'DELETE' && $req->uri->path eq '/wifi_conf/conn') {
+        my $json;
+        if ($conn) {
+            $json = '{"status":1,"message":"Disconnected from '.$conn.'"}';
+            $conn = undef;
+        } else {
+            $json = '{"status":0,"message":"Not connected"}';
         }
         my $res = json_response($json);
         $c->send_response($res);

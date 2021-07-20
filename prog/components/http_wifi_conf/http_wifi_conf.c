@@ -64,6 +64,27 @@ static esp_err_t http_delete_aps_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t http_get_conn_handler(httpd_req_t *req)
+{
+    ESP_LOGE(TAG, "FIXME: stub %s", __func__);
+    httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Not Implemented");
+    return ESP_OK;
+}
+
+static esp_err_t http_post_conn_handler(httpd_req_t *req)
+{
+    ESP_LOGE(TAG, "FIXME: stub %s", __func__);
+    httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Not Implemented");
+    return ESP_OK;
+}
+
+static esp_err_t http_delete_conn_handler(httpd_req_t *req)
+{
+    ESP_LOGE(TAG, "FIXME: stub %s", __func__);
+    httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Not Implemented");
+    return ESP_OK;
+}
+
 static esp_err_t http_wifi_conf_handler(httpd_req_t *req)
 {
     const char *path = req->uri+sizeof("/wifi_conf")-1;
@@ -84,6 +105,15 @@ static esp_err_t http_wifi_conf_handler(httpd_req_t *req)
     }
     if (req->method == HTTP_DELETE && strcmp(path, "/aps") == 0) {
         return http_delete_aps_handler(req);
+    }
+    if (req->method == HTTP_GET && strcmp(path, "/conn") == 0) {
+        return http_get_conn_handler(req);
+    }
+    if (req->method == HTTP_POST && strcmp(path, "/conn") == 0) {
+        return http_post_conn_handler(req);
+    }
+    if (req->method == HTTP_DELETE && strcmp(path, "/conn") == 0) {
+        return http_delete_conn_handler(req);
     }
     httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Not Found");
     return ESP_FAIL;

@@ -15,3 +15,13 @@ table th, table td { border:solid 1px #F80; padding:0.5em; }
 }
 .row { width:calc( 100% - 1em ); margin:0.5em; }
 .row::after { clear:both; }
+.center { text-align:center; }
+div.vcenter { position:relative; top:50%; transform:translateY(-50%);}
+
+.kurukuru {
+  display:inline-block; display:inline flow-root; width:32px; height:32px;
+  border:4px #DDD solid; border-top:4px #F80 solid; border-radius:50%;
+  animation:kurukuru-anime 1.0s infinite linear;
+}
+.kurukuru-large { width:80px; height:80px; border-width: 10px; }
+@keyframes kurukuru-anime { 100% { transform:rotate(360deg); } }

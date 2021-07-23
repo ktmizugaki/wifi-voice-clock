@@ -11,6 +11,9 @@
     <script>
       "use strict";
       function myfetch(path, params) {
+        if (params && params.method !== 'GET') {
+          params.headers = Object.assign({'Content-Type':'application/x-www-form-urlencoded'}, params.headers);
+        }
         return cmn.req(location.href+'/'+path, params).then(function(res) {
           return res.json();
         }).catch(function(err) {
@@ -230,7 +233,7 @@
         <div class="row">SSID: <span id="conn-ssid"></span></div>
         <div class="row">RSSI: <span id="conn-rssi"></span></div>
         <div class="row">IP: <span id="conn-ip"></span></div>
-        <button id="disconn">切断</button>
+        <div class="row"><button id="disconn">切断</button></div>
       </div>
     </div>
 

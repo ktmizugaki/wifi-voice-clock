@@ -21,6 +21,8 @@
 extern "C" {
 #endif
 
+#define WIFI_CONF_NTP_SERVER_LENGTH 22
+
 extern esp_err_t http_wifi_conf_register(httpd_handle_t handle);
 extern esp_err_t http_wifi_conf_unregister(httpd_handle_t handle);
 

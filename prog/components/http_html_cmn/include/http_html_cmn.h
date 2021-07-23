@@ -22,6 +22,14 @@
 extern "C" {
 #endif
 
+#define HTTP_CMN_OK     0
+#define HTTP_CMN_FAIL   1
+
+#define HTTP_CMN_ERR_BASE           0x1000
+#define HTTP_CMN_ERR_INVALID_REQ    (HTTP_CMN_ERR_BASE + 1)
+#define HTTP_CMN_ERR_SOCK_TIMEOUT   (HTTP_CMN_ERR_BASE + 2)
+
+
 #define EMBEDDED_HANDLER_NAME(name) http_get_ ## name ## _handler
 #define MAKE_EMBEDDED_HANDLER(name, content_type) \
     esp_err_t EMBEDDED_HANDLER_NAME(name)(httpd_req_t *req) \
@@ -35,6 +43,28 @@ extern "C" {
 
 extern esp_err_t http_html_cmn_register(httpd_handle_t handle);
 extern esp_err_t http_html_cmn_unregister(httpd_handle_t handle);
+
+/* Called for each key/value pair in query. value may be NULL if value is
+ * ommited in query such as "...&key&..." */
+typedef void (*parse_query_handler_t)(char *key, size_t key_len, char *value, size_t value_len, void *user_data);
+/* This function modifies query and pass pointer inside the query to handler.
+ * You can keep reference to key/value passed to handler as long as you keep
+ * reference to the query. */
+extern esp_err_t http_cmn_parse_query(char *query, parse_query_handler_t handler, void *user_data);
+
+extern int http_cmn_handle_form_data(httpd_req_t *req, parse_query_handler_t handler, void *user_data);
+
+static inline int http_cmn_is_true_like(const char *value)
+{
+    return strcmp(value, "1") == 0 || strcmp(value, "y") == 0 || strcmp(value, "t") == 0 ||
+        strcmp(value, "yes") == 0 || strcmp(value, "true") == 0 || strcmp(value, "on") == 0;
+}
+
+static inline int http_cmn_is_false_like(const char *value)
+{
+    return strcmp(value, "0") == 0 || strcmp(value, "n") == 0 || strcmp(value, "f") == 0 ||
+        strcmp(value, "no") == 0 || strcmp(value, "false") == 0 || strcmp(value, "off") == 0;
+}
 
 #ifdef __cplusplus
 }

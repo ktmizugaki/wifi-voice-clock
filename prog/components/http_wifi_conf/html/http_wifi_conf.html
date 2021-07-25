@@ -7,6 +7,15 @@
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <title>WiFi設定</title>
     <link rel="stylesheet" href="/cmn.css">
+    <style>
+      @media (max-width:640px) {
+        .w-ssid { width:1em; border:none; }
+        .w-ssid > * { display:none; }
+      }
+      @media not all and (max-width:640px) {
+        .n-ssid { display:none; }
+      }
+    </style>
     <script src="/cmn.js"></script>
     <script>
       "use strict";
@@ -71,8 +80,9 @@
 
           for (var i = 0; i < json.aps.length; i++) {
             var ap = json.aps[i];
+            cmn.tmpl(['tr',{class:"n-ssid"},['td',{colspan:"3"},ap.ssid]],tbody);
             cmn.tmpl(['tr',{},
-              ['td',{},ap.ssid],
+              ['td',{class:"w-ssid"},['span',{},ap.ssid]],
               ['td',{},ap.use_static_ip?ap.ip:'DHCP'],
               ['td',{},ap.ntp],
               ['td',{},['button',{click:connect.bind(null,ap.ssid)},'接続'],' ',
@@ -153,8 +163,9 @@
           tbody.innerHTML = '';
           for (var i = 0; i < l; i++) {
             var record = json.records[i];
+            cmn.tmpl(['tr',{class:"n-ssid"},['td',{colspan:"3"},record.ssid]],tbody);
             cmn.tmpl(['tr',{},
-              ['td',{},record.ssid],
+              ['td',{class:"w-ssid"},['span',{},record.ssid]],
               ['td',{},record.authmode? record.authmode: 'なし'],
               ['td',{title:"rssi:"+record.rssi},record.rssi>=-70? '強': '弱'],
               ['td',{},['button',{click:select_scan.bind(null,record)},'選択']],
@@ -221,8 +232,9 @@
         <button id="open-add-ap">追加</button>
       </div>
       <table class="row">
-        <colgroup><col span="1"><col span="1" style="width:10em;"><col span="1" style="width:10em;"><col span="1" style="width:10em;"></colgroup>
-        <thead><tr><th>SSID</th><th style="">IP</th><th>NTP</th></tr></thead>
+        <colgroup><col class="w-ssid" span="1"><col span="1" style="width:10em;"><col span="1" style="width:10em;"><col span="1" style="width:10em;"></colgroup>
+        <thead><tr class="n-ssid"><th colspan="3">SSID</th></tr>
+          <tr><th class="w-ssid"><span>SSID</span></th><th style="">IP</th><th>NTP</th></tr></thead>
         <tbody id="aps-body"></tbody>
       </table>
     </div>
@@ -263,9 +275,10 @@
         </div>
         <div id="scans">
           <table class="row">
-            <colgroup><col span="1"><col span="1" style="width:6em;"><col span="1" style="width:6em;"><col span="1" style="width:6em;"></colgroup>
+            <colgroup><col class="w-ssid" span="1"><col span="1" style="width:6em;"><col span="1" style="width:6em;"><col span="1" style="width:6em;"></colgroup>
 
-            <thead><tr><th>SSID</th><th>暗号化</th><th>強度</th></tr></thead><tbody id="scans-body"></tbody>
+            <thead><tr class="n-ssid"><th colspan="3">SSID</th></tr>
+              <tr><th class="w-ssid"><span>SSID</span></th><th>暗号化</th><th>強度</th></tr></thead><tbody id="scans-body"></tbody>
           </table>
           <div class="row"><button id="close-scans">閉じる</button></div>
         </div>

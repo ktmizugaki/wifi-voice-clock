@@ -1,5 +1,6 @@
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 .hidden { display:none; }
+input, button, select { padding: 4px; }
 table { border:none; border-collapse:collapse; }
 table th, table td { border:solid 1px #F80; padding:0.5em; }
 .modal {

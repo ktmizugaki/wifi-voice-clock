@@ -19,9 +19,14 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <nvs_flash.h>
+#include <esp_wifi.h>
+#include <esp_http_server.h>
 #include <esp_err.h>
 #include <esp_log.h>
 
+#include <simple_wifi.h>
+#include <http_html_cmn.h>
+#include <http_wifi_conf.h>
 
 #define TAG "main"
 
@@ -31,12 +36,43 @@ enum app_mode {
 
 static enum app_mode s_mode = APP_MODE_INITIAL;
 
+static void start_initial_httpd(httpd_handle_t *httpd)
+{
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 32; /* default 8 will be too small */
+    config.stack_size = 10*1024;
+    config.uri_match_fn = httpd_uri_match_wildcard;
+
+    if (httpd_start(httpd, &config) != ESP_OK) {
+        ESP_LOGW(TAG, "Error starting server");
+        return;
+    }
+
+    ESP_ERROR_CHECK( http_html_cmn_register(*httpd) );
+    ESP_ERROR_CHECK( http_wifi_conf_register(*httpd) );
+}
+
 static enum app_mode handle_initial(void)
 {
+    httpd_handle_t httpd = NULL;
+    char ssid[SWIFI_SSID_LEN];
+    char password[SWIFI_PW_LEN];
+    ESP_LOGD(TAG, "handle_initial");
+
+    simple_wifi_clear_ap();
+    simple_wifi_start(SIMPLE_WIFI_MODE_STA_SOFTAP);
+
+    simple_wifi_get_ssid(ssid);
+    simple_wifi_get_password(password);
+    ESP_LOGI(TAG, "SoftAP: SSID=%s, password=%s", ssid, password);
+
+    start_initial_httpd(&httpd);
+
     while (true) {
-        ESP_LOGD(TAG, "handle_initial");
         vTaskDelay(2000/portTICK_PERIOD_MS);
     }
+
+    httpd_stop(httpd);
     return APP_MODE_INITIAL;
 }
 

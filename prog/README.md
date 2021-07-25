@@ -53,3 +53,7 @@
 |     |         9 |   33 | XTALN               |
 |     |         4 |   36 |                     |
 |     |         5 |   39 |                     |
+
+# ESP-IDF
+
+This project use ESP-IDF v4.0.

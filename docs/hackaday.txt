@@ -52,6 +52,20 @@ To save energy, device is usually in deep sleep state and display is off.
 1x Small Speaker
 
 # Logs
+## Uploaded files and code to GitHub
+<p>Uploaded files and code to GitHub:<br><a href="https://github.com/ktmizugaki/wifi-voice-clock">https://github.com/ktmizugaki/wifi-voice-clock</a></p>
+<p>Current status of code is:</p>
+<ul>
+<li>When ESP32 is started, it becomes AP and HTTP server.
+  <ul><li>SSID and password is printed to serial console.</li></ul>
+</li>
+<li>WiFi settings can be added using Web UI.
+  <ul><li>URL will be <code>http://192.168.4.1/wifi_conf</code></li></ul>
+</li>
+<li>ESP32 can connect to added SSID.</li>
+</ul>
+<p>I haven't touched displaying part yet.(SSID and password will be shown on the display in the future)</p>
+
 ## Fixed display board
 <p>I fixed display board and satisfied with layout. I hope this will be good this time.</p>
 <figure><img src="https://cdn.hackaday.io/images/3283271625487399428.png" data-image="1625487399841"></figure>

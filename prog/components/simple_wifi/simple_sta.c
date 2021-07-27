@@ -16,6 +16,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
 #include <esp_wifi.h>
 #include <esp_err.h>
 #include <esp_log.h>
@@ -35,17 +38,46 @@ const wifi_auth_mode_t MIN_AUTH_MODE = WIFI_AUTH_WPA_PSK;
 static int s_num_ap_conf = 0;
 static struct simple_wifi_ap_static_conf s_ap_confs[SWIFI_MAX_AP_CONFS];
 
-static uint64_t s_last_scan = 0;
+static SemaphoreHandle_t s_scan_result_mutex = NULL;
+static int s_last_scan = 0;
 static int s_num_scan_result = 0;
 static wifi_ap_record_t *s_scan_records = NULL;
 
 enum simple_wifi_scan_state simple_scan_state = SIMPLE_WIFI_SCAN_NONE;
 enum simple_wifi_connection_state simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
 
+static void expire_scan_result(void)
+{
+    int diff;
+    if (xSemaphoreTake(s_scan_result_mutex, 3000/portTICK_PERIOD_MS) != pdTRUE) {
+        return;
+    }
+    if (simple_scan_state == SIMPLE_WIFI_SCAN_DONE) {
+        diff = swifi_time() - s_last_scan;
+        if (diff >= 3*60) {
+            simple_sta_clear_scan_result();
+        }
+    }
+    xSemaphoreGive(s_scan_result_mutex);
+}
+
+esp_err_t simple_sta_init(void)
+{
+    if (s_scan_result_mutex == NULL) {
+        s_scan_result_mutex = xSemaphoreCreateMutex();
+        if (s_scan_result_mutex == NULL) {
+            return ESP_FAIL;
+        }
+    }
+    return ESP_OK;
+}
+
 void simple_wifi_clear_ap(void)
 {
+    simple_wifi__lock(portMAX_DELAY);
     s_num_ap_conf = 0;
     memset(&s_ap_confs, 0, sizeof(s_ap_confs));
+    simple_wifi__unlock();
 }
 
 esp_err_t simple_wifi_add_ap(const char *ssid, const char *password)
@@ -89,14 +121,21 @@ esp_err_t simple_wifi_add_ap_conf(const struct simple_wifi_ap_conf *conf, size_t
     if (conf_size < sizeof(*conf) || conf_size > sizeof(s_ap_confs[0])) {
         return ESP_ERR_INVALID_ARG;
     }
+    if (!simple_wifi__lock(200/portTICK_PERIOD_MS)) {
+        ESP_LOGW(TAG, "add_ap_conf: lock failed");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (s_num_ap_conf >= SWIFI_MAX_AP_CONFS) {
+        simple_wifi__unlock();
         return ESP_ERR_NO_MEM;
     }
     memcpy(&s_ap_confs[s_num_ap_conf], conf, conf_size);
     s_num_ap_conf++;
+    simple_wifi__unlock();
     return ESP_OK;
 }
 
+/* must be inside simple_wifi__lock when calling this function */
 static bool find_ap_conf(const char *ssid, const struct simple_wifi_ap_conf **conf)
 {
     int conf_index;
@@ -109,6 +148,7 @@ static bool find_ap_conf(const char *ssid, const struct simple_wifi_ap_conf **co
     return false;
 }
 
+/* s_scan_result_mutex must be locked before calling this function */
 static bool find_ap_conf_from_scan(const struct simple_wifi_ap_conf **conf, const wifi_ap_record_t **ap)
 {
     int ap_index;
@@ -131,7 +171,12 @@ esp_err_t simple_sta_set_scan_result(void)
     esp_err_t ret;
     uint16_t ap_num;
     wifi_ap_record_t *records;
+    if (xSemaphoreTake(s_scan_result_mutex, 3000/portTICK_PERIOD_MS) != pdTRUE) {
+        ESP_LOGW(TAG, "set_scan_result: lock failed");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (!(simple_wifi_mode & SIMPLE_WIFI_MODE_STA)) {
+        xSemaphoreGive(s_scan_result_mutex);
         ESP_LOGD(TAG, "not in sta mode");
         return ESP_ERR_INVALID_STATE;
     }
@@ -140,16 +185,17 @@ esp_err_t simple_sta_set_scan_result(void)
 
     ret = esp_wifi_scan_get_ap_num(&ap_num);
     if (ret != ESP_OK) {
+        xSemaphoreGive(s_scan_result_mutex);
         ESP_LOGW(TAG, "get_ap_num failed; %d, %d", ret, ap_num);
-        simple_scan_state = SIMPLE_WIFI_SCAN_NONE;
         return ESP_FAIL;
     }
     if (ap_num == 0) {
         ESP_LOGV(TAG, "no access points");
-        s_last_scan = time(NULL);
+        s_last_scan = swifi_time();
         s_num_scan_result = 0;
         s_scan_records = NULL;
-        simple_scan_state = SIMPLE_WIFI_SCAN_NONE;
+        simple_scan_state = SIMPLE_WIFI_SCAN_DONE;
+        xSemaphoreGive(s_scan_result_mutex);
         return ESP_OK;
     }
     records = malloc(sizeof(wifi_ap_record_t) * ap_num);
@@ -160,15 +206,17 @@ esp_err_t simple_sta_set_scan_result(void)
         /* hope this releases allocated memory in wifi driver */
         esp_wifi_scan_get_ap_records(&ap_num, &record);
         simple_scan_state = SIMPLE_WIFI_SCAN_NONE;
+        xSemaphoreGive(s_scan_result_mutex);
         return ESP_ERR_NO_MEM;
     }
 
     if (esp_wifi_scan_get_ap_records(&ap_num, records) != ESP_OK) {
         ESP_LOGW(TAG, "get_ap_records failed");
         free(records);
+        xSemaphoreGive(s_scan_result_mutex);
         return ESP_FAIL;
     }
-    s_last_scan = time(NULL);
+    s_last_scan = swifi_time();
     s_num_scan_result = ap_num;
     s_scan_records = records;
     simple_scan_state = SIMPLE_WIFI_SCAN_DONE;
@@ -190,9 +238,11 @@ esp_err_t simple_sta_set_scan_result(void)
         }
     }
 
+    xSemaphoreGive(s_scan_result_mutex);
     return ESP_OK;
 }
 
+/* s_scan_result_mutex must be locked before calling this function */
 void simple_sta_clear_scan_result(void)
 {
     simple_scan_state = SIMPLE_WIFI_SCAN_NONE;
@@ -209,11 +259,14 @@ esp_err_t simple_wifi_scan(void)
         ESP_LOGD(TAG, "not in sta mode");
         return ESP_ERR_INVALID_STATE;
     }
+    simple_wifi__lock(portMAX_DELAY);
     if (simple_scan_state == SIMPLE_WIFI_SCANNING) {
+        simple_wifi__unlock();
         ESP_LOGD(TAG, "already scan is in progress");
         return ESP_OK;
     }
     if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
+        simple_wifi__unlock();
         ESP_LOGD(TAG, "wifi is not disconnected");
         return ESP_ERR_INVALID_STATE;
     }
@@ -229,17 +282,37 @@ esp_err_t simple_wifi_scan(void)
         .scan_time.passive = 100,
     };
     ESP_ERROR_CHECK( esp_wifi_scan_start(&scan_config, false) );
+    simple_wifi__unlock();
 
     return ESP_OK;
 }
 
 enum simple_wifi_scan_state simple_wifi_get_scan_result(int *ap_num, const void **ap)
 {
-    if (simple_scan_state == SIMPLE_WIFI_SCAN_DONE) {
+    xSemaphoreTake(s_scan_result_mutex, portMAX_DELAY);
+    enum simple_wifi_scan_state state = simple_scan_state;
+    if (simple_scan_state == SIMPLE_WIFI_SCAN_DONE && s_scan_records != NULL) {
         *ap_num = s_num_scan_result;
         *(wifi_ap_record_t**)ap = s_scan_records;
+    } else {
+        xSemaphoreGive(s_scan_result_mutex);
+        *ap_num = 0;
+        *ap = NULL;
     }
-    return simple_scan_state;
+    return state;
+}
+
+void simple_wifi_release_scan_result(const void *ap)
+{
+    if (ap == NULL) {
+        /* lock was not got */
+        return;
+    }
+    if (ap != s_scan_records) {
+        ESP_LOGE(TAG, "cannot release different result");
+        return;
+    }
+    xSemaphoreGive(s_scan_result_mutex);
 }
 
 esp_err_t simple_wifi_connect(void)
@@ -247,20 +320,30 @@ esp_err_t simple_wifi_connect(void)
     const struct simple_wifi_ap_static_conf *conf;
     const wifi_ap_record_t *ap;
 
+    simple_wifi__lock(portMAX_DELAY);
+    xSemaphoreTake(s_scan_result_mutex, portMAX_DELAY);
     if (!(simple_wifi_mode & SIMPLE_WIFI_MODE_STA)) {
+        xSemaphoreGive(s_scan_result_mutex);
+        simple_wifi__unlock();
         ESP_LOGD(TAG, "not in sta mode");
         return ESP_ERR_INVALID_STATE;
     }
     if (s_num_scan_result == 0 || s_num_ap_conf == 0) {
+        xSemaphoreGive(s_scan_result_mutex);
+        simple_wifi__unlock();
         ESP_LOGD(TAG, "no ap configured: %d, %d", s_num_scan_result, s_num_ap_conf);
         return ESP_ERR_INVALID_STATE;
     }
     if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
+        xSemaphoreGive(s_scan_result_mutex);
+        simple_wifi__unlock();
         ESP_LOGD(TAG, "state is not disconnected");
         return ESP_OK;
     }
 
     if (!find_ap_conf_from_scan((const struct simple_wifi_ap_conf**)&conf, &ap)) {
+        xSemaphoreGive(s_scan_result_mutex);
+        simple_wifi__unlock();
         ESP_LOGW(TAG, "No matching ap");
         return ESP_FAIL;
     }
@@ -280,6 +363,7 @@ esp_err_t simple_wifi_connect(void)
     strcpy((char*)wifi_config.sta.password, conf->ap.password);
     memcpy(wifi_config.sta.bssid, ap->bssid, sizeof(wifi_config.sta.bssid));
     //wifi_config.sta.channel = ap->primary;
+    xSemaphoreGive(s_scan_result_mutex);
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     if (conf->ap.use_static_ip) {
         tcpip_adapter_ip_info_t ip_info;
@@ -292,6 +376,7 @@ esp_err_t simple_wifi_connect(void)
         tcpip_adapter_dhcpc_start(TCPIP_ADAPTER_IF_STA);
     }
     ESP_ERROR_CHECK( esp_wifi_connect() );
+    simple_wifi__unlock();
     return ESP_OK;
 }
 
@@ -299,20 +384,25 @@ esp_err_t simple_wifi_connect_direct(const char *ssid)
 {
     const struct simple_wifi_ap_static_conf *conf;
 
+    simple_wifi__lock(portMAX_DELAY);
     if (!(simple_wifi_mode & SIMPLE_WIFI_MODE_STA)) {
+        simple_wifi__unlock();
         ESP_LOGD(TAG, "not in sta mode");
         return ESP_ERR_INVALID_STATE;
     }
     if (s_num_ap_conf == 0) {
+        simple_wifi__unlock();
         ESP_LOGD(TAG, "no ap configured: %d", s_num_ap_conf);
         return ESP_ERR_INVALID_STATE;
     }
     if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
+        simple_wifi__unlock();
         ESP_LOGD(TAG, "state is not disconnected");
         return ESP_OK;
     }
 
     if (!find_ap_conf(ssid, (const struct simple_wifi_ap_conf**)&conf)) {
+        simple_wifi__unlock();
         ESP_LOGW(TAG, "No matching ap");
         return ESP_FAIL;
     }
@@ -342,6 +432,7 @@ esp_err_t simple_wifi_connect_direct(const char *ssid)
         tcpip_adapter_dhcpc_start(TCPIP_ADAPTER_IF_STA);
     }
     ESP_ERROR_CHECK( esp_wifi_connect() );
+    simple_wifi__unlock();
     return ESP_OK;
 }
 
@@ -385,12 +476,16 @@ esp_err_t simple_wifi_get_connection_info(struct simple_wifi_ap_info *info)
 
 bool simple_wifi_is_scan_result_available(void)
 {
+    expire_scan_result();
     return simple_scan_state == SIMPLE_WIFI_SCAN_DONE;
 }
 
 void simple_sta_stop(void)
 {
     simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
-    simple_sta_clear_scan_result();
+    if (xSemaphoreTake(s_scan_result_mutex, 1000/portTICK_PERIOD_MS) == pdTRUE) {
+        simple_sta_clear_scan_result();
+        xSemaphoreGive(s_scan_result_mutex);
+    }
     esp_wifi_disconnect();
 }

@@ -99,6 +99,7 @@ void app_main(void)
 {
     ESP_LOGD(TAG, "Started");
 
+    ESP_ERROR_CHECK( simple_wifi_init() );
     ESP_ERROR_CHECK( app_init_nvs() );
 
     setenv("TZ", "JST-9", 1);

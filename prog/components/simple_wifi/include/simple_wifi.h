@@ -73,6 +73,7 @@ enum simple_wifi_connection_state {
     SIMPLE_WIFI_DISCONNECTING,
 };
 
+extern esp_err_t simple_wifi_init(void);
 extern esp_err_t simple_wifi_start(enum simple_wifi_mode mode);
 extern void simple_wifi_stop(void);
 
@@ -85,6 +86,7 @@ extern esp_err_t simple_wifi_add_ap_conf(const struct simple_wifi_ap_conf *conf,
 /* manage esp32 station status */
 extern esp_err_t simple_wifi_scan(void);
 extern enum simple_wifi_scan_state simple_wifi_get_scan_result(int *ap_num, const void **ap);
+extern void simple_wifi_release_scan_result(const void *ap);
 extern esp_err_t simple_wifi_connect(void);
 extern esp_err_t simple_wifi_connect_direct(const char *ssid);
 extern void simple_wifi_disconnect(void);

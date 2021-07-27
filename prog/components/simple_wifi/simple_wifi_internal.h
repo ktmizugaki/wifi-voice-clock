@@ -16,6 +16,9 @@
 #pragma once
 
 #include <stdbool.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_err.h>
 #include "simple_wifi.h"
 
 #ifdef __cplusplus
@@ -25,6 +28,15 @@ extern "C" {
 extern enum simple_wifi_mode simple_wifi_mode;
 extern enum simple_wifi_connection_state simple_connection_state;
 
+static inline int swifi_time(void)
+{
+    return xTaskGetTickCount()/(1000/portTICK_PERIOD_MS);
+}
+
+extern bool simple_wifi__lock(TickType_t ticks_to_wait);
+extern void simple_wifi__unlock(void);
+
+extern esp_err_t simple_sta_init(void);
 extern esp_err_t simple_sta_set_scan_result(void);
 extern void simple_sta_clear_scan_result(void);
 extern void simple_sta_stop(void);

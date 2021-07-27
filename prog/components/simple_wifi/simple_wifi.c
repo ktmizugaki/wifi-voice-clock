@@ -16,9 +16,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <freertos/event_groups.h>
 #include <esp_wifi.h>
 #include <esp_event_loop.h>
+#include <esp_task.h>
 #include <esp_err.h>
 #include <esp_log.h>
 
@@ -33,14 +35,49 @@
 static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 
 enum simple_wifi_mode simple_wifi_mode;
+static SemaphoreHandle_t s_wifi_mutex = NULL;
 static EventGroupHandle_t s_wifi_event_group = NULL;
+
+esp_err_t simple_wifi_init(void)
+{
+    esp_err_t err;
+
+    if (s_wifi_mutex == NULL) {
+        s_wifi_mutex = xSemaphoreCreateMutex();
+        if (s_wifi_mutex == NULL) {
+            return ESP_FAIL;
+        }
+    }
+    err = simple_sta_init();
+    if (err != ESP_OK) {
+        return err;
+    }
+    return ESP_OK;
+}
+
+bool simple_wifi__lock(TickType_t timeout)
+{
+    return xSemaphoreTake(s_wifi_mutex, timeout) == pdTRUE;
+}
+
+void simple_wifi__unlock(void)
+{
+    if (xSemaphoreGive(s_wifi_mutex) == pdTRUE) {
+        return;
+    }
+    ESP_ERROR_CHECK( ESP_ERR_INVALID_STATE );
+}
 
 esp_err_t simple_wifi_start(enum simple_wifi_mode mode)
 {
     if (mode == 0 || mode == SIMPLE_WIFI_MODE_SOFTAP) {
         return ESP_ERR_INVALID_ARG;
     }
+    if (!simple_wifi__lock(5000/portTICK_PERIOD_MS)) {
+        return ESP_FAIL;
+    }
     if (simple_wifi_mode) {
+        simple_wifi__unlock();
         return simple_wifi_mode == mode? ESP_OK: ESP_ERR_INVALID_STATE;
     }
     tcpip_adapter_init();
@@ -69,13 +106,14 @@ esp_err_t simple_wifi_start(enum simple_wifi_mode mode)
         ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_APSTA) );
     }
     ESP_ERROR_CHECK( esp_wifi_start() );
+    simple_wifi_mode = mode;
+    simple_wifi__unlock();
 
     EventBits_t uxBits = xEventGroupWaitBits(s_wifi_event_group, STARTED_BIT, pdFALSE, pdTRUE, 3000/portTICK_PERIOD_MS);
     if (! (uxBits & STARTED_BIT) ) {
         simple_wifi_stop();
         return ESP_FAIL;
     }
-    simple_wifi_mode = mode;
     return ESP_OK;
 }
 
@@ -87,7 +125,10 @@ void simple_wifi_stop(void)
     if (simple_wifi_mode & SIMPLE_WIFI_MODE_STA) {
         simple_sta_stop();
     }
+    simple_wifi__lock(portMAX_DELAY);
     simple_wifi_mode = 0;
+    simple_wifi__unlock();
+
     esp_wifi_stop();
     esp_wifi_deinit();
     esp_wifi_restore();
@@ -118,6 +159,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
                 wifi_event_sta_disconnected_t *event = event_data;
                 ESP_LOGV(TAG, "Disconnect reason: %u", event->reason);
             }
+            simple_wifi__lock(portMAX_DELAY);
             if (simple_connection_state != SIMPLE_WIFI_CONNECTED) {
                 simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
             } else {
@@ -126,6 +168,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
                 }
                 xEventGroupClearBits(s_wifi_event_group, CONNECTED_BIT);
             }
+            simple_wifi__unlock();
             break;
         case WIFI_EVENT_AP_START:
             ESP_LOGD(TAG, "SoftAP start");

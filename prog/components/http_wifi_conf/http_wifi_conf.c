@@ -194,6 +194,7 @@ static esp_err_t http_get_scan_handler(httpd_req_t *req)
 
     json = new_json_str(state == SIMPLE_WIFI_SCAN_DONE? 128: 32);
     if (json == NULL) {
+        simple_wifi_release_scan_result(ap);
         return wifi_conf_send_error(req, HTTP_CMN_FAIL);
     }
     json_str_begin_object(json, NULL);
@@ -216,6 +217,7 @@ static esp_err_t http_get_scan_handler(httpd_req_t *req)
         json_str_end_array(json);
     }
     json_str_end_object(json);
+    simple_wifi_release_scan_result(ap);
     httpd_resp_set_type(req, HTTPD_TYPE_JSON);
     err = httpd_resp_sendstr(req, json_str_finalize(json));
     delete_json_str(json);

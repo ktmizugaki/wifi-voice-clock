@@ -35,6 +35,7 @@ static MAKE_EMBEDDED_HANDLER(http_wifi_conf_html, "text/html")
 
 #define TAG "wifi_conf"
 
+/* from simple_wifi/simple_sta.c */
 #ifdef CONFIG_SWIFI_MAX_AP_CONFS
 #define SWIFI_MAX_AP_CONFS  CONFIG_SWIFI_MAX_AP_CONFS
 #else
@@ -258,8 +259,11 @@ static esp_err_t http_get_aps_handler(httpd_req_t *req)
     json_str_add_integer(json, "status", 1);
 
     json_str_begin_array(json, "aps");
-    for (i = 0; i < s_num_wifi_conf; i++) {
+    for (i = 0; i < SWIFI_MAX_AP_CONFS; i++) {
         struct wifi_conf *conf = &s_wifi_confs[i];
+        if (!s_wifi_conf_states[i].valid) {
+            continue;
+        }
         json_str_begin_object(json, NULL);
         json_str_add_string(json, "ssid", conf->conf.ap.ssid);
         json_str_add_boolean(json, "use_static_ip", conf->conf.ap.use_static_ip);

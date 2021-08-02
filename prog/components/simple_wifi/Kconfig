@@ -11,4 +11,12 @@ config SWIFI_SOFTAP_IP
     help
         IP address of ESP32 when acting as Soft AP.
         Net mask is always 255.255.255.0.
+
+config SWIFI_SOFTAP_SSID_PREFIX
+    string "SoftAP SSID prefix (maximum 16 chars)"
+    default "esp32"
+    help
+        SSID prefix of ESP32 when acting as Soft AP.
+        MAC address is added to prefix.
+        Maximum 16 bytes.
 endmenu

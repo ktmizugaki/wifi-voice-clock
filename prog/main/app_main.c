@@ -27,11 +27,17 @@
 #include <simple_wifi.h>
 #include <http_html_cmn.h>
 #include <http_wifi_conf.h>
+#include <lan_manager.h>
+#include <clock.h>
+
+#include "app_clock.h"
 
 #define TAG "main"
 
 enum app_mode {
     APP_MODE_INITIAL,
+    APP_MODE_INITIALSYNC,
+    APP_MODE_CLOCK,
 };
 
 static enum app_mode s_mode = APP_MODE_INITIAL;
@@ -73,7 +79,43 @@ static enum app_mode handle_initial(void)
     }
 
     httpd_stop(httpd);
-    return APP_MODE_INITIAL;
+    return http_wifi_conf_configured()? APP_MODE_INITIALSYNC: APP_MODE_INITIAL;
+}
+
+static enum app_mode handle_initialsync(void)
+{
+    esp_err_t err;
+    ESP_LOGD(TAG, "handle_initialsync");
+
+    err = app_clock_start_sync();
+    if (err != ESP_OK) {
+        return APP_MODE_INITIAL;
+    }
+
+    while (true) {
+        if (app_clock_is_done()) {
+            app_clock_stop_sync();
+            return clock_is_valid()? APP_MODE_CLOCK: APP_MODE_INITIAL;
+        }
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
+}
+
+static enum app_mode handle_clock(void)
+{
+    ESP_LOGD(TAG, "handle_clock");
+
+    while (true) {
+        struct tm tm;
+        char buf_date[11], buf_time[11];
+        clock_localtime(&tm);
+        strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
+        strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
+        printf("Time is: %s %s\n", buf_date, buf_time);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
+
+    return APP_MODE_CLOCK;
 }
 
 static esp_err_t app_init_nvs(void)
@@ -100,14 +142,23 @@ void app_main(void)
     ESP_LOGD(TAG, "Started");
 
     ESP_ERROR_CHECK( simple_wifi_init() );
+    ESP_ERROR_CHECK( lan_manager_init() );
     ESP_ERROR_CHECK( app_init_nvs() );
 
     setenv("TZ", "JST-9", 1);
     tzset();
 
+    if (!http_wifi_conf_configured()) {
+        s_mode = APP_MODE_INITIAL;
+    } else if (!clock_is_valid()) {
+        s_mode = APP_MODE_INITIALSYNC;
+    } else {
+    }
     while (true) {
         switch (s_mode) {
         case APP_MODE_INITIAL: s_mode = handle_initial(); break;
+        case APP_MODE_INITIALSYNC: s_mode = handle_initialsync(); break;
+        case APP_MODE_CLOCK: s_mode = handle_clock(); break;
         }
     }
 }

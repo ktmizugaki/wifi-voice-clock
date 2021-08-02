@@ -17,22 +17,14 @@
 
 #include <stdbool.h>
 #include <esp_err.h>
-#include <esp_http_server.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define WIFI_CONF_NTP_SERVER_LENGTH 22
-
-extern esp_err_t http_wifi_conf_register(httpd_handle_t handle);
-extern esp_err_t http_wifi_conf_unregister(httpd_handle_t handle);
-
-extern bool http_wifi_conf_configured(void);
-extern esp_err_t http_wifi_conf_connect(void);
-extern esp_err_t http_wifi_conf_connect_direct(const char *ssid);
-
-extern esp_err_t http_wifi_conf_get_ntp(char ntp[WIFI_CONF_NTP_SERVER_LENGTH]);
+extern esp_err_t app_clock_start_sync(void);
+extern void app_clock_stop_sync(void);
+extern bool app_clock_is_done(void);
 
 #ifdef __cplusplus
 }

@@ -761,3 +761,23 @@ esp_err_t http_wifi_conf_connect_direct(const char *ssid)
     err = simple_wifi_connect_direct(ssid);
     return err == ESP_OK? ESP_OK: ESP_FAIL;
 }
+
+esp_err_t http_wifi_conf_get_ntp(char ntp[WIFI_CONF_NTP_SERVER_LENGTH])
+{
+    struct simple_wifi_ap_info info;
+    int conf_index;
+    esp_err_t err;
+
+    err = simple_wifi_get_connection_info(&info);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    conf_index = find_wifi_conf(info.ssid);
+    if (conf_index == -1) {
+        return ESP_ERR_NOT_FOUND;
+    }
+    strcpy(ntp, s_wifi_confs[conf_index].ntp);
+
+    return ESP_OK;
+}

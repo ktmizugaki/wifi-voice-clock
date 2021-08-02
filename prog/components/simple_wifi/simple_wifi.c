@@ -25,6 +25,7 @@
 #include <esp_log.h>
 
 #include "simple_wifi.h"
+#include "simple_wifi_event.h"
 #include "simple_wifi_internal.h"
 
 #define TAG "swifi"
@@ -37,6 +38,8 @@ static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_
 enum simple_wifi_mode simple_wifi_mode;
 static SemaphoreHandle_t s_wifi_mutex = NULL;
 static EventGroupHandle_t s_wifi_event_group = NULL;
+
+ESP_EVENT_DEFINE_BASE(SIMPLE_WIFI_EVENT);
 
 esp_err_t simple_wifi_init(void)
 {
@@ -151,7 +154,12 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             xEventGroupSetBits(s_wifi_event_group, STARTED_BIT);
             break;
         case WIFI_EVENT_STA_STOP:
-            simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
+            simple_wifi__lock(portMAX_DELAY);
+            if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
+                simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
+                swifi_event_post(STA_DISCONNECTED, NULL, 0);
+            }
+            simple_wifi__unlock();
             xEventGroupClearBits(s_wifi_event_group, STARTED_BIT);
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
@@ -160,9 +168,13 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
                 ESP_LOGV(TAG, "Disconnect reason: %u", event->reason);
             }
             simple_wifi__lock(portMAX_DELAY);
-            if (simple_connection_state != SIMPLE_WIFI_CONNECTED) {
-                simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
+            if (simple_sta_retry == 0 || simple_connection_state != SIMPLE_WIFI_CONNECTED) {
+                if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
+                    simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
+                    swifi_event_post(STA_DISCONNECTED, NULL, 0);
+                }
             } else {
+                simple_sta_retry--;
                 if (xEventGroupGetBits(s_wifi_event_group) & CONNECTED_BIT) {
                     esp_wifi_connect();
                 }
@@ -172,9 +184,11 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             break;
         case WIFI_EVENT_AP_START:
             ESP_LOGD(TAG, "SoftAP start");
+            swifi_event_post(SOFTAP_START, NULL, 0);
             break;
         case WIFI_EVENT_AP_STOP:
             ESP_LOGD(TAG, "SoftAP stop");
+            swifi_event_post(SOFTAP_STOP, NULL, 0);
             break;
         default:
             ESP_LOGV(TAG, "Unhandled wifi event: %u", event_id);
@@ -189,7 +203,8 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
                 if (simple_connection_state == SIMPLE_WIFI_CONNECTING) {
                     simple_connection_state = SIMPLE_WIFI_CONNECTED;
                 }
-                /* TODO: notify connected to app */
+                swifi_event_post(STA_CONNECTED, NULL, 0);
+                simple_sta_retry = 5;
                 xEventGroupSetBits(s_wifi_event_group, CONNECTED_BIT);
             }
             break;

@@ -24,6 +24,7 @@
 #include <esp_log.h>
 
 #include "simple_wifi.h"
+#include "simple_wifi_event.h"
 #include "simple_wifi_internal.h"
 
 #define TAG "swifi_sta"
@@ -38,6 +39,7 @@ const wifi_auth_mode_t MIN_AUTH_MODE = WIFI_AUTH_WPA_PSK;
 static int s_num_ap_conf = 0;
 static struct simple_wifi_ap_static_conf s_ap_confs[SWIFI_MAX_AP_CONFS];
 
+static int s_scan_expire_sec = 3*60;
 static SemaphoreHandle_t s_scan_result_mutex = NULL;
 static int s_last_scan = 0;
 static int s_num_scan_result = 0;
@@ -45,6 +47,7 @@ static wifi_ap_record_t *s_scan_records = NULL;
 
 enum simple_wifi_scan_state simple_scan_state = SIMPLE_WIFI_SCAN_NONE;
 enum simple_wifi_connection_state simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
+int simple_sta_retry = 0;
 
 static void expire_scan_result(void)
 {
@@ -54,7 +57,7 @@ static void expire_scan_result(void)
     }
     if (simple_scan_state == SIMPLE_WIFI_SCAN_DONE) {
         diff = swifi_time() - s_last_scan;
-        if (diff >= 3*60) {
+        if ((unsigned)diff >= s_scan_expire_sec) {
             simple_sta_clear_scan_result();
         }
     }
@@ -196,6 +199,7 @@ esp_err_t simple_sta_set_scan_result(void)
         s_scan_records = NULL;
         simple_scan_state = SIMPLE_WIFI_SCAN_DONE;
         xSemaphoreGive(s_scan_result_mutex);
+        swifi_event_post(SCAN_DONE, NULL, 0);
         return ESP_OK;
     }
     records = malloc(sizeof(wifi_ap_record_t) * ap_num);
@@ -239,6 +243,7 @@ esp_err_t simple_sta_set_scan_result(void)
     }
 
     xSemaphoreGive(s_scan_result_mutex);
+    swifi_event_post(SCAN_DONE, NULL, 0);
     return ESP_OK;
 }
 
@@ -349,6 +354,7 @@ esp_err_t simple_wifi_connect(void)
     }
 
     simple_connection_state = SIMPLE_WIFI_CONNECTING;
+    simple_sta_retry = 5;
     wifi_config_t wifi_config = {
         .sta = {
             .scan_method = WIFI_FAST_SCAN,
@@ -408,6 +414,7 @@ esp_err_t simple_wifi_connect_direct(const char *ssid)
     }
 
     simple_connection_state = SIMPLE_WIFI_CONNECTING;
+    simple_sta_retry = 5;
     wifi_config_t wifi_config = {
         .sta = {
             .scan_method = WIFI_FAST_SCAN,
@@ -438,12 +445,18 @@ esp_err_t simple_wifi_connect_direct(const char *ssid)
 
 void simple_wifi_disconnect(void)
 {
-    if (simple_connection_state == SIMPLE_WIFI_CONNECTING) {
-        simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
-        esp_wifi_disconnect();
-    } else if (simple_connection_state == SIMPLE_WIFI_CONNECTED) {
-        simple_connection_state = SIMPLE_WIFI_DISCONNECTING;
-        esp_wifi_disconnect();
+    if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
+        simple_wifi__lock(portMAX_DELAY);
+        simple_sta_retry = 0;
+        if (simple_connection_state == SIMPLE_WIFI_CONNECTING) {
+            simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
+            esp_wifi_disconnect();
+            swifi_event_post(STA_DISCONNECTED, NULL, 0);
+        } else if (simple_connection_state == SIMPLE_WIFI_CONNECTED) {
+            simple_connection_state = SIMPLE_WIFI_DISCONNECTING;
+            esp_wifi_disconnect();
+        }
+        simple_wifi__unlock();
     }
 }
 
@@ -482,7 +495,11 @@ bool simple_wifi_is_scan_result_available(void)
 
 void simple_sta_stop(void)
 {
-    simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
+    simple_sta_retry = 0;
+    if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
+        simple_connection_state = SIMPLE_WIFI_DISCONNECTED;
+        swifi_event_post(STA_DISCONNECTED, NULL, 0);
+    }
     if (xSemaphoreTake(s_scan_result_mutex, 1000/portTICK_PERIOD_MS) == pdTRUE) {
         simple_sta_clear_scan_result();
         xSemaphoreGive(s_scan_result_mutex);

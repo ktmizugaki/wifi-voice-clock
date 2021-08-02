@@ -20,6 +20,7 @@
 #include <freertos/task.h>
 #include <esp_err.h>
 #include "simple_wifi.h"
+#include "simple_wifi_event.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +28,11 @@ extern "C" {
 
 extern enum simple_wifi_mode simple_wifi_mode;
 extern enum simple_wifi_connection_state simple_connection_state;
+extern int simple_sta_retry;
+
+#define swifi_event_post(event, data, size) \
+    esp_event_post(SIMPLE_WIFI_EVENT, SIMPLE_WIFI_EVENT_ ## event, \
+        data, size, 0)
 
 static inline int swifi_time(void)
 {

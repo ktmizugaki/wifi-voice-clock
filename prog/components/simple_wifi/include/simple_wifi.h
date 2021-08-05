@@ -76,6 +76,7 @@ enum simple_wifi_connection_state {
 extern esp_err_t simple_wifi_init(void);
 extern esp_err_t simple_wifi_start(enum simple_wifi_mode mode);
 extern void simple_wifi_stop(void);
+extern enum simple_wifi_mode simple_wifi_get_mode(void);
 
 /* configuring access points to be connected */
 extern void simple_wifi_clear_ap(void);

@@ -22,10 +22,12 @@
 #include <esp_err.h>
 #include <esp_log.h>
 
+#include <esp_event.h>
 #include <esp_http_server.h>
 #include <esp_wifi_types.h>
 
 #include <simple_wifi.h>
+#include <simple_wifi_event.h>
 #include <http_html_cmn.h>
 #include <json_str.h>
 
@@ -54,6 +56,8 @@ struct wifi_conf {
 static int8_t s_num_wifi_conf = -1;
 static struct wifi_conf_state s_wifi_conf_states[SWIFI_MAX_AP_CONFS];
 static struct wifi_conf s_wifi_confs[SWIFI_MAX_AP_CONFS];
+
+static bool s_waiting_scan_done = false;
 
 static esp_err_t wifi_conf_load(void)
 {
@@ -650,4 +654,110 @@ esp_err_t http_wifi_conf_unregister(httpd_handle_t handle)
     httpd_unregister_uri_handler(handle, "/cmn.js", HTTP_GET);
     httpd_unregister_uri_handler(handle, "/cmn.css", HTTP_GET);
     return ESP_OK;
+}
+
+bool http_wifi_conf_configured(void)
+{
+    wifi_conf_load();
+    return s_num_wifi_conf != 0;
+}
+
+
+static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    if (event_base == SIMPLE_WIFI_EVENT) {
+        switch(event_id) {
+        case SIMPLE_WIFI_EVENT_SCAN_DONE:
+            if (s_waiting_scan_done) {
+                if (simple_wifi_is_scan_result_available()) {
+                    simple_wifi_connect();
+                }
+                s_waiting_scan_done = false;
+            }
+            break;
+        }
+    }
+}
+
+esp_err_t http_wifi_conf_connect(void)
+{
+    int i;
+    int timeout;
+    esp_err_t err;
+
+    if (simple_wifi_get_connection_state() == SIMPLE_WIFI_CONNECTED) {
+        return ESP_OK;
+    }
+
+    wifi_conf_load();
+
+    if (s_num_wifi_conf == 0) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    simple_wifi_disconnect();
+    simple_wifi_clear_ap();
+    for (i = 0; i < SWIFI_MAX_AP_CONFS; i++) {
+        struct wifi_conf *conf = &s_wifi_confs[i];
+        if (!s_wifi_conf_states[i].valid) {
+            continue;
+        }
+        ESP_ERROR_CHECK( simple_wifi_add_ap_conf(&conf->conf.ap, sizeof(conf->conf)) );
+    }
+
+    timeout = 30;
+    if (simple_wifi_get_connection_state() == SIMPLE_WIFI_DISCONNECTING && --timeout > 0) {
+        vTaskDelay(100/portTICK_PERIOD_MS);
+    }
+    if (timeout == 0) {
+        ESP_LOGW(TAG, "Failed to disconnect");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    if (!simple_wifi_is_scan_result_available()) {
+        s_waiting_scan_done = true;
+        /* overwrites previous registration if exists */
+        ESP_ERROR_CHECK( esp_event_handler_register(
+            SIMPLE_WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL) );
+        simple_wifi_scan();
+        return ESP_OK;
+    }
+
+    err = simple_wifi_connect();
+    return err == ESP_OK? ESP_OK: ESP_FAIL;
+}
+
+esp_err_t http_wifi_conf_connect_direct(const char *ssid)
+{
+    int conf_index;
+    int timeout;
+    esp_err_t err;
+
+    wifi_conf_load();
+
+    if (ssid == NULL || ssid[0] == '\0') {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_num_wifi_conf == 0) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    conf_index = find_wifi_conf(ssid);
+    if (conf_index == -1) {
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    simple_wifi_disconnect();
+    simple_wifi_clear_ap();
+    ESP_ERROR_CHECK( simple_wifi_add_ap_conf(&s_wifi_confs[conf_index].conf.ap, sizeof(s_wifi_confs[conf_index].conf)) );
+    timeout = 30;
+    while (simple_wifi_get_connection_state() == SIMPLE_WIFI_DISCONNECTING && --timeout > 0) {
+        vTaskDelay(100/portTICK_PERIOD_MS);
+    }
+    if (simple_wifi_get_connection_state() != SIMPLE_WIFI_DISCONNECTED) {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    err = simple_wifi_connect_direct(ssid);
+    return err == ESP_OK? ESP_OK: ESP_FAIL;
 }

@@ -142,6 +142,11 @@ void simple_wifi_stop(void)
     esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, event_handler);
 }
 
+enum simple_wifi_mode simple_wifi_get_mode(void)
+{
+    return simple_wifi_mode;
+}
+
 
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {

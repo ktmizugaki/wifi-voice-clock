@@ -110,7 +110,7 @@ To save energy, device is usually in deep sleep state and display is off.
 <figure><img class="lazy" src="https://cdn.hackaday.io/images/791941624284427504.jpg"></figure>
 <p>I could't find SMD right angled pin socket of this size, I bent leg of socket so that it looks as if a SMD socket.</p>
 <figure>bent-leg</figure>
-<p>then solder pinheader at left and right side. Remaining pad to solder pin socket to connect front panel will be soldered lator.</p>
+<p>then solder pinheader at left and right side. Remaining pad to solder pin socket to connect front panel will be soldered later.</p>
 <p>Now you can check if ESP32 works.</p>
 
 ## IO board
@@ -119,7 +119,9 @@ To save energy, device is usually in deep sleep state and display is off.
 <p>Solder switches and pull-up resisters on top of board.</p>
 <p>Cut leg of sockets to slightly less than board thickness before soldering so that the leg does not scratch fingers.</p>
 <figure><img src="https://cdn.hackaday.io/images/7271211624371566553.jpg" data-image="1624371567166"></figure>
-<p>I covered unused pads with tape so that they don't interact with speaker when I placed on.<br>Remaining pad is for the speaker I haven't decided what to use.</p>
+<p>I covered unused pads with tape so that they don't interact with speaker when I placed on.</p>
+<p>Solder speaker contact and adhere speaker to board. </p>
+<figure><img src="https://cdn.hackaday.io/images/4934091630111869658.jpg" data-image="1630111870291"></figure>
 
 ## PSU board
 <p>It would be better to solder the USB mini-B socket first. This socket is only for power and signal pis are not connected.<br>The leg of the socket is hiding under housing and I could not hand solder it well :-(</p>
@@ -139,6 +141,16 @@ To save energy, device is usually in deep sleep state and display is off.
 <p>There is no component to be soldered to back panel.<br>But I filled unused TH with solder. Also solder 4 bars.</p>
 <figure><img src="https://cdn.hackaday.io/images/2240841625311363242.jpg" data-image="1625311363723"></figure>
 
+## display board
+<p>Solder pin socket to MCU board. To solder at correct location, holding boards "connected" while soldering. I bent leg of pin socket 180 degree btw.</p>
+<figure><img src="https://cdn.hackaday.io/images/3365191630112266585.jpg" data-image="1630112267206"></figure>
+<p>Then solder pin header to display board. It may be easier to solder if you attached top, side and bottom boards to MCU board when soldering, which also helps to position.<br>Note that it is critical to make resulting surface flat to mount OLED pannel.</p>
+<figure><img src="https://cdn.hackaday.io/images/1674201630112368533.jpg" data-image="1630112369020"></figure>
+<p>Solder capacitors and resistors required to drive OLED.</p>
+<figure><img src="https://cdn.hackaday.io/images/9984071630112614796.jpg" data-image="1630112615405"></figure>
+<p>Optionaly solder LEDs, switches and resistors to drive the LEDs.<br>These LEDs are only turned on by connected switches(not connected to MCU). I added thes to just fill blank space.</p>
+<figure><img src="https://cdn.hackaday.io/images/8413531630112465798.jpg" data-image="1630112466402"></figure>
+
 ## Adding holders
 <p>front/back panels are not connected strongly. So I needs to add bars to support panels are fixed.</p>
 <p>Add 8 valleys to top/bottom boards along straight silk marks where bars of front/back panels to be inserted.</p>
@@ -146,3 +158,10 @@ To save energy, device is usually in deep sleep state and display is off.
 <p>Below picture is when I done adding valleys to top board for back panel.</p>
 <figure><img src="https://cdn.hackaday.io/images/1977981625312886834.jpg" data-image="1625312887473"></figure>
 <figure><img src="https://cdn.hackaday.io/images/2483571625312910053.jpg" data-image="1625312910586"></figure>
+
+## Attach OLED to display board
+<p>Finally, attach OLED to display board. I think it is better to do this as last step to prevent OLED from being damaged by heat.</p>
+<p>Solder bezel over OLED panel to fix OLED panel to display board. 4 arrows in below picture indicates soldering point. I also hope the bezel protect from physical damage but not sure. Use double-sided tape instead if you prefer.</p>
+<figure><img src="https://cdn.hackaday.io/images/5891371630112981939.jpg" data-image="1630112982543"></figure>
+<p>Solder FPC connector.</p>
+<figure><img src="https://cdn.hackaday.io/images/5048331630113002267.jpg" data-image="1630113002749"></figure>

@@ -52,6 +52,13 @@ To save energy, device is usually in deep sleep state and display is off.
 1x Small Speaker
 
 # Logs
+## OLED worked! at least once
+<figure><img src="https://cdn.hackaday.io/images/4911421630321110360.jpg" data-image="1630321110933"><figcaption>This picture was taken at Aug. 7</figcaption></figure>
+<p>I assembled updated PCB and it worked at least once. And it stoped working after I soldered optional LEDs.<br>I suspect too much heat damaged the panel.</p>
+<p>But that is not a large problem as I have one working display and display is not critical for this alarm clock.</p>
+<p>Anyway I finally implemented the speaker and electronics part is done. I did not make much progress to software part though, considering electronics part took more than 1 year to be done, I believe it will be reach somewhere in the future.</p>
+<p>As for the speaker, I picked <a href="https://www.digikey.com/en/products/detail/cui-devices/CES-26138-16L030/10821308">CES-26138-16L030</a> and <a href="https://www.digikey.com/en/products/detail/cui-devices/CDS-25148-L100/5355540">CDS-25148-L100</a> for their sizes. Then I compared 2 speakers and felt that CES-26138 sounds better and used it.</p>
+
 ## Uploaded files and code to GitHub
 <p>Uploaded files and code to GitHub:<br><a href="https://github.com/ktmizugaki/wifi-voice-clock">https://github.com/ktmizugaki/wifi-voice-clock</a></p>
 <p>Current status of code is:</p>
@@ -70,7 +77,7 @@ To save energy, device is usually in deep sleep state and display is off.
 <p>I fixed display board and satisfied with layout. I hope this will be good this time.</p>
 <figure><img src="https://cdn.hackaday.io/images/3283271625487399428.png" data-image="1625487399841"></figure>
 <p>And it's about time to order a speaker...</p>
-<p>While waiting for new parts arrive, I'll start conding using almost working object here.</p>
+<p>While waiting for new parts arrive, I'll start coding using almost working object here.</p>
 <figure><img src="https://cdn.hackaday.io/images/5985241625487926255.jpg" data-image="1625487926889" style="width: 320px; height: 226px;" width="320" height="226"></figure>
 <p>My plan is, when first powered up, the clock becomes an AP and user sets SSID and password via Web UI. So first thing I need to implement is:</p>
 <ul>

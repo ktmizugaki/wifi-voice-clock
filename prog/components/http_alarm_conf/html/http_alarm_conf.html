@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <title>アラーム設定</title>
+    <link rel="stylesheet" href="/cmn.css">
+    <style>
+      td.disabled { background-color: #ccc; color #555; }
+    </style>
+    <script src="/cmn.js"></script>
+    <script>
+      "use strict";
+      var WEEK_STRS = '日 月 火 水 木 金 土'.split(' ');
+
+      function pad(n){ return n<10?'0'+n:''+n; }
+      function make_weeks_str(weeks) {
+        return WEEK_STRS.filter(function(n,i){return weeks&(1<<i)}).join(' ');
+      }
+      function make_time_str(seconds) {
+        var h=0|(seconds/3600),m=0|((seconds/60)%60),s=0|(seconds%60);
+        return ""+pad(h)+":"+pad(m);
+      }
+      function parse_time(time) {
+        var m = time.match(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/);
+        if (m) {
+          return parseInt(m[1], 10)*3600+parseInt(m[2], 10)*60;
+        }
+      }
+
+      function draw_alarms(json) {
+        if (json.status === 1) {
+          var tbody = cmn.el('alarms-body');
+          tbody.innerHTML = '';
+
+          for (var i = 0; i < json.alarms.length; i++) {
+            var alarm = json.alarms[i], disabled = !alarm.enabled, attrs = {class:disabled?'disabled':''};
+            cmn.tmpl(['tr',{},
+              ['td',{},['input',Object.assign({type:'checkbox','disabled':''},disabled?{}:{checked:''})]],
+              ['td',attrs,['span',{},alarm.name]],
+              ['td',attrs,make_weeks_str(alarm.weeks)],
+              ['td',attrs,make_time_str(alarm.seconds)],
+              ['td',{},['button',{click:open_edit_alarm.bind(null,alarm,i)},'編集']],
+            ], tbody);
+          }
+        } else {
+          /* TODO: show error message */
+        }
+      }
+
+      function get_alarms() {
+        cmn.api("alarms").then(draw_alarms);
+      }
+
+      function edit_alarm(form) {
+        var seconds = parse_time(cmn.val(form, 'time'));
+        if (seconds == null) {
+          alert('時刻の形式が正しくありません');
+          return;
+        }
+        var weeks = 0;
+        WEEK_STRS.forEach(function(str, i) {
+          if (cmn.chk(form, 'week'+i).length>0) {
+            weeks |= (1<<i);
+          }
+        });
+        var params = cmn.build(form, 'enabled index name alarm_id'.split(' '));
+        params = Object.assign({
+          enabled: false,
+          weeks: weeks,
+          seconds: seconds,
+        }, params);
+        cmn.api("alarms", {method: 'POST',body:cmn.qstr(params)}).then(function(json){
+          alert(json.message);
+          if (json.status === 1) {
+            cmn.modal('edit-alarm', false);
+            get_alarms();
+          }
+        });
+      }
+
+      function open_edit_alarm(alarm, index) {
+        var form = cmn.el('edit-alarm');
+        form.reset();
+        cmn.val(form, 'index', index);
+        cmn.chk(form, 'enabled', alarm.enabled?'true':'');
+        cmn.val(form, 'name', alarm.name);
+        WEEK_STRS.forEach(function(str, i) {
+          cmn.chk(form, 'week'+i, (alarm.weeks&(1<<i))!=0?i:-1);
+        });
+        cmn.val(form, 'time', make_time_str(alarm.seconds));
+        cmn.val(form, 'alarm_id', alarm.alarm_id);
+        cmn.modal(form, true);
+      }
+
+      function doload() {
+        get_alarms();
+
+        cmn.on('edit-alarm', 'submit', function(ev) {
+          ev.preventDefault();
+          edit_alarm(this);
+        });
+        cmn.click('close-edit-alarm', function(ev) {
+          cmn.modal('edit-alarm', false);
+        });
+
+        WEEK_STRS.forEach(function(str, i) {
+          cmn.tmpl(['label',{},
+            ['input',{type:'checkbox',name:'week'+i,value:i}],
+            str,
+          ], cmn.el('weeks'));
+          cmn.text(' ', cmn.el('weeks'));
+        });
+      }
+      cmn.ready(doload);
+    </script>
+  </head>
+  <body>
+    <div>
+      <table class="row">
+        <colgroup><col span="1" style="width:4em;"><col span="1"><col span="1" style="width:18em;"><col span="1" style="width:5em;"><col span="1" style="width:8em;"></colgroup>
+        <thead><tr><th>有効</th><th>名前</th><th>曜日</th><th>時刻</th></tr></thead>
+        <tbody id="alarms-body"></tbody>
+      </table>
+    </div>
+
+    <form id="edit-alarm" class="modal hidden" method="POST">
+      <div class="modal-inner">
+        <input type="hidden" name="index">
+        <div class="row"><label><input type="checkbox" name="enabled" value="true">有効</label></div>
+        <div class="row">名前: <input type="text" name="name" maxlength="11"></div>
+        <div class="row">曜日: <span id="weeks"></span></div>
+        <div class="row">時刻: <input type="text" name="time" maxlength="15" placeholder="HH:MM"></div>
+        <div class="row">アラーム音: <input type="number" name="alarm_id" min="0" max="0"></div>
+        <div class="row">
+          <input type="submit" value="保存">
+          <button type="button" id="close-edit-alarm">キャンセル</button>
+        </div>
+      </div>
+    </form>
+  </body>
+</html>

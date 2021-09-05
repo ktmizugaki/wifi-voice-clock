@@ -44,6 +44,9 @@ extern "C" {
 extern esp_err_t http_html_cmn_register(httpd_handle_t handle);
 extern esp_err_t http_html_cmn_unregister(httpd_handle_t handle);
 
+#define HTTP_CMN_KEYCMP(key, key_len, target)   \
+    ((key_len) == sizeof(target)-1 && strcmp((key), target) == 0)
+
 /* Called for each key/value pair in query. value may be NULL if value is
  * ommited in query such as "...&key&..." */
 typedef void (*parse_query_handler_t)(char *key, size_t key_len, char *value, size_t value_len, void *user_data);

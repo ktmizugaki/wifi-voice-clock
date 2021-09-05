@@ -11,6 +11,16 @@ var cmn = {
         return fetch.apply(null, args);
       });
   },
+  api: function(path, params) {
+    if (params && params.method !== 'GET') {
+      params.headers = Object.assign({'Content-Type':'application/x-www-form-urlencoded'}, params.headers);
+    }
+    return this.req(location.href+'/'+path, params).then(function(res) {
+      return res.json();
+    }).catch(function(err) {
+      return {status:-1,message:err.message};
+    });
+  },
   ik: function(o,k){return this.hasOwnProperty.call(o,k);},
   ready: function(fn) {
     window.addEventListener('DOMContentLoaded', fn);
@@ -47,7 +57,7 @@ var cmn = {
   },
   cls: function(el, cls, on) {
     el = this.el(el);
-    if (on === void(0)) on = true;
+    if (on === void 0) on = true;
     if (on) {
       el.classList.add(cls);
     } else {
@@ -55,7 +65,7 @@ var cmn = {
     }
   },
   modal: function(el, show) {
-    if (show === void(0)) show = true;
+    if (show === void 0) show = true;
     this.cls(this.el(el), 'hidden', !show);
     this.cls(document.body, 'modal-shown', document.querySelectorAll('.modal:not(.hidden)').length>0);
   },
@@ -68,11 +78,24 @@ var cmn = {
       }
     }
   },
+  chk: function(form, name, value) {
+    var els = this.el(form).elements, vals = [], isarr = value instanceof Array;
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.name !== name) continue;
+      if (value !== void 0) {
+        el.checked = isarr? value.indexOf(el.value) !== -1: value==el.value;
+      }
+      if (el.checked) vals.push(el.value);
+    }
+    return vals;
+  },
   build: function(form, names) {
     var body = {};
     var els = this.el(form).elements;
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
+      if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked) continue;
       if (!names || names.indexOf(el.name) > -1) body[el.name] = el.value;
     }
     return body;

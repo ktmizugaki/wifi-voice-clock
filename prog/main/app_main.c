@@ -27,6 +27,7 @@
 #include <simple_wifi.h>
 #include <http_html_cmn.h>
 #include <http_wifi_conf.h>
+#include <http_alarm_conf.h>
 #include <lan_manager.h>
 #include <clock.h>
 
@@ -56,6 +57,23 @@ static void start_initial_httpd(httpd_handle_t *httpd)
 
     ESP_ERROR_CHECK( http_html_cmn_register(*httpd) );
     ESP_ERROR_CHECK( http_wifi_conf_register(*httpd) );
+}
+
+static void start_settings_httpd(httpd_handle_t *httpd)
+{
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 32; /* default 8 will be too small */
+    config.stack_size = 10*1024;
+    config.uri_match_fn = httpd_uri_match_wildcard;
+
+    if (httpd_start(httpd, &config) != ESP_OK) {
+        ESP_LOGW(TAG, "Error starting server");
+        return;
+    }
+
+    ESP_ERROR_CHECK( http_html_cmn_register(*httpd) );
+    ESP_ERROR_CHECK( http_wifi_conf_register(*httpd) );
+    ESP_ERROR_CHECK( http_alarm_conf_register(*httpd) );
 }
 
 static enum app_mode handle_initial(void)
@@ -103,7 +121,18 @@ static enum app_mode handle_initialsync(void)
 
 static enum app_mode handle_clock(void)
 {
+    httpd_handle_t httpd = NULL;
+    char ssid[SWIFI_SSID_LEN];
+    char password[SWIFI_PW_LEN];
     ESP_LOGD(TAG, "handle_clock");
+
+    simple_wifi_start(SIMPLE_WIFI_MODE_STA_SOFTAP);
+
+    simple_wifi_get_ssid(ssid);
+    simple_wifi_get_password(password);
+    ESP_LOGI(TAG, "SoftAP: SSID=%s, password=%s", ssid, password);
+
+    start_settings_httpd(&httpd);
 
     while (true) {
         struct tm tm;
@@ -115,6 +144,7 @@ static enum app_mode handle_clock(void)
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
 
+    httpd_stop(httpd);
     return APP_MODE_CLOCK;
 }
 

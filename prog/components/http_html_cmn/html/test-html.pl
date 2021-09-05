@@ -43,9 +43,17 @@ sub parse_query {
     return map {split /=/, $_, 2} split /&/, $query, -1;
 }
 
+sub is_true_like {
+    defined($_[0]) && $_[0] =~ /^(1|y|t|yes|true|on)$/;
+}
+
+sub is_false_like {
+    defined($_[0]) && $_[0] =~ /^(0|n|f|no|false|off)$/;
+}
+
 sub to_json_bool {
     my ($value) = @_;
-    if ($value eq 'true' || $value eq '1') {
+    if (is_true_like($value)) {
         return 'true';
     } else {
         return 'false';

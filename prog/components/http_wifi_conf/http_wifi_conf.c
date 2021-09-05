@@ -33,9 +33,10 @@
 
 #include "http_wifi_conf.h"
 
-static MAKE_EMBEDDED_HANDLER(http_wifi_conf_html, "text/html")
-
 #define TAG "wifi_conf"
+#define WIFI_CONF_URI  "/wifi_conf"
+
+static MAKE_EMBEDDED_HANDLER(http_wifi_conf_html, "text/html")
 
 /* from simple_wifi/simple_sta.c */
 #ifdef CONFIG_SWIFI_MAX_AP_CONFS
@@ -296,37 +297,37 @@ static void post_aps_params_handler(char *key, size_t key_len, char *value, size
     struct wifi_conf *params = user_data;
 
     if (value == NULL) return;
-    if (key_len == 4 && strcmp(key, "ssid") == 0) {
+    if (HTTP_CMN_KEYCMP(key, key_len, "ssid")) {
         if (value_len+1 <= sizeof(params->conf.ap.ssid)) {
             strcpy(params->conf.ap.ssid, value);
         }
         return;
     }
-    if (key_len == 8 && strcmp(key, "password") == 0) {
+    if (HTTP_CMN_KEYCMP(key, key_len, "password")) {
         if (value_len+1 <= sizeof(params->conf.ap.password)) {
             strcpy(params->conf.ap.password, value);
         }
         return;
     }
-    if (key_len == 13 && strcmp(key, "use_static_ip") == 0) {
+    if (HTTP_CMN_KEYCMP(key, key_len, "use_static_ip")) {
         if (http_cmn_is_true_like(value)) {
             params->conf.ap.use_static_ip = 1;
         }
         return;
     }
-    if (key_len == 2 && strcmp(key, "ip") == 0) {
+    if (HTTP_CMN_KEYCMP(key, key_len, "ip")) {
         if (value_len+1 <= sizeof(params->conf.ip)) {
             strcpy(params->conf.ip, value);
         }
         return;
     }
-    if (key_len == 7 && strcmp(key, "gateway") == 0) {
+    if (HTTP_CMN_KEYCMP(key, key_len, "gateway")) {
         if (value_len+1 <= sizeof(params->conf.gateway)) {
             strcpy(params->conf.gateway, value);
         }
         return;
     }
-    if (key_len == 3 && strcmp(key, "ntp") == 0) {
+    if (HTTP_CMN_KEYCMP(key, key_len, "ntp")) {
         if (value_len+1 <= sizeof(params->ntp)) {
             strcpy(params->ntp, value);
         }
@@ -584,7 +585,7 @@ static esp_err_t http_delete_conn_handler(httpd_req_t *req)
 
 static esp_err_t http_wifi_conf_handler(httpd_req_t *req)
 {
-    const char *path = req->uri+sizeof("/wifi_conf")-1;
+    const char *path = req->uri+sizeof(WIFI_CONF_URI)-1;
     size_t path_len = strlen(path);
 #define test_path(target_method, target_path) \
     (req->method == target_method && \
@@ -626,7 +627,7 @@ esp_err_t http_wifi_conf_register(httpd_handle_t handle)
     esp_err_t err;
 
     static httpd_uri_t http_uri;
-    http_uri.uri = "/wifi_conf*";
+    http_uri.uri = WIFI_CONF_URI "*";
     http_uri.handler = http_wifi_conf_handler;
     http_uri.user_ctx = NULL;
 
@@ -651,8 +652,9 @@ esp_err_t http_wifi_conf_register(httpd_handle_t handle)
 
 esp_err_t http_wifi_conf_unregister(httpd_handle_t handle)
 {
-    httpd_unregister_uri_handler(handle, "/cmn.js", HTTP_GET);
-    httpd_unregister_uri_handler(handle, "/cmn.css", HTTP_GET);
+    httpd_unregister_uri_handler(handle, WIFI_CONF_URI "*", HTTP_GET);
+    httpd_unregister_uri_handler(handle, WIFI_CONF_URI "*", HTTP_POST);
+    httpd_unregister_uri_handler(handle, WIFI_CONF_URI "*", HTTP_DELETE);
     return ESP_OK;
 }
 

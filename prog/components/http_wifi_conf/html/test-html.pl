@@ -69,7 +69,7 @@ sub wifi_conf_handler {
             $json = '{"status":0,"message":"Too many aps"}';
         } elsif ($params{ssid} && ($i >= 0 || $params{password}) && $params{ntp}) {
             my $ap = '"ssid":"'.$params{ssid}.'","use_static_ip":'.to_json_bool($params{use_static_ip}).',"ntp":"'.$params{ntp}.'"';
-            if ($params{use_static_ip} eq 'true') {
+            if (is_true_like($params{use_static_ip})) {
                 $ap .= ',"ip":"'.$params{ip}.'","gateway":"'.$params{gateway}.'","netmask":"'.$params{netmask}.'"';
             }
             $ap = '{'.$ap.'}';

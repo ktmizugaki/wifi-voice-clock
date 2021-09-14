@@ -32,6 +32,7 @@
 #include <clock.h>
 
 #include "app_clock.h"
+#include "app_switches.h"
 
 #define TAG "main"
 
@@ -39,6 +40,7 @@ enum app_mode {
     APP_MODE_INITIAL,
     APP_MODE_INITIALSYNC,
     APP_MODE_CLOCK,
+    APP_MODE_SETTINGS,
 };
 
 static enum app_mode s_mode = APP_MODE_INITIAL;
@@ -121,18 +123,8 @@ static enum app_mode handle_initialsync(void)
 
 static enum app_mode handle_clock(void)
 {
-    httpd_handle_t httpd = NULL;
-    char ssid[SWIFI_SSID_LEN];
-    char password[SWIFI_PW_LEN];
+    enum app_action action;
     ESP_LOGD(TAG, "handle_clock");
-
-    simple_wifi_start(SIMPLE_WIFI_MODE_STA_SOFTAP);
-
-    simple_wifi_get_ssid(ssid);
-    simple_wifi_get_password(password);
-    ESP_LOGI(TAG, "SoftAP: SSID=%s, password=%s", ssid, password);
-
-    start_settings_httpd(&httpd);
 
     while (true) {
         struct tm tm;
@@ -141,10 +133,42 @@ static enum app_mode handle_clock(void)
         strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
         strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
         printf("Time is: %s %s\n", buf_date, buf_time);
+        action = app_switches_get_action();
+        if (action == (APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE)) {
+            return APP_MODE_SETTINGS;
+        }
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
+
+    return APP_MODE_CLOCK;
+}
+
+static enum app_mode handle_settings(void)
+{
+    enum app_action action;
+    httpd_handle_t httpd = NULL;
+    char ssid[SWIFI_SSID_LEN];
+    char password[SWIFI_PW_LEN];
+    ESP_LOGD(TAG, "handle_settings");
+
+    lan_manager_request_softap();
+
+    simple_wifi_get_ssid(ssid);
+    simple_wifi_get_password(password);
+    ESP_LOGI(TAG, "SoftAP: SSID=%s, password=%s", ssid, password);
+
+    start_settings_httpd(&httpd);
+
+    while (true) {
+        action = app_switches_get_action();
+        if (action == (APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE)) {
+            break;
+        }
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
 
     httpd_stop(httpd);
+    lan_manager_release_conn();
     return APP_MODE_CLOCK;
 }
 
@@ -171,6 +195,7 @@ void app_main(void)
 {
     ESP_LOGD(TAG, "Started");
 
+    ESP_ERROR_CHECK( app_switches_init() );
     ESP_ERROR_CHECK( simple_wifi_init() );
     ESP_ERROR_CHECK( lan_manager_init() );
     ESP_ERROR_CHECK( app_init_nvs() );
@@ -183,12 +208,14 @@ void app_main(void)
     } else if (!clock_is_valid()) {
         s_mode = APP_MODE_INITIALSYNC;
     } else {
+        s_mode = APP_MODE_CLOCK;
     }
     while (true) {
         switch (s_mode) {
         case APP_MODE_INITIAL: s_mode = handle_initial(); break;
         case APP_MODE_INITIALSYNC: s_mode = handle_initialsync(); break;
         case APP_MODE_CLOCK: s_mode = handle_clock(); break;
+        case APP_MODE_SETTINGS: s_mode = handle_settings(); break;
         }
     }
 }

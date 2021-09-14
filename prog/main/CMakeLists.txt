@@ -1,6 +1,7 @@
-idf_component_register(SRCS "app_main.c" "app_clock.c"
+idf_component_register(SRCS "app_main.c" "app_clock.c" "app_switches.c"
         EMBED_FILES
                 gen/nvskey.dat
-        REQUIRES clock lan_manager http_alarm_conf http_wifi_conf simple_wifi esp_http_server nvs_flash)
+        REQUIRES switches clock lan_manager
+                http_alarm_conf http_wifi_conf simple_wifi esp_http_server nvs_flash)
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-format-truncation)

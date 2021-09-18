@@ -15,162 +15,24 @@
 
 #include <stdbool.h>
 #include <string.h>
-#include <time.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 #include <nvs_flash.h>
-#include <esp_wifi.h>
-#include <esp_http_server.h>
+#include <esp_event_loop.h>
 #include <esp_err.h>
 #include <esp_log.h>
 
 #include <simple_wifi.h>
-#include <http_html_cmn.h>
 #include <http_wifi_conf.h>
-#include <http_alarm_conf.h>
 #include <lan_manager.h>
 #include <clock.h>
 
+#include "app_event.h"
 #include "app_clock.h"
 #include "app_switches.h"
+#include "app_mode.h"
 
 #define TAG "main"
 
-enum app_mode {
-    APP_MODE_INITIAL,
-    APP_MODE_INITIALSYNC,
-    APP_MODE_CLOCK,
-    APP_MODE_SETTINGS,
-};
-
-static enum app_mode s_mode = APP_MODE_INITIAL;
-
-static void start_initial_httpd(httpd_handle_t *httpd)
-{
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 32; /* default 8 will be too small */
-    config.stack_size = 10*1024;
-    config.uri_match_fn = httpd_uri_match_wildcard;
-
-    if (httpd_start(httpd, &config) != ESP_OK) {
-        ESP_LOGW(TAG, "Error starting server");
-        return;
-    }
-
-    ESP_ERROR_CHECK( http_html_cmn_register(*httpd) );
-    ESP_ERROR_CHECK( http_wifi_conf_register(*httpd) );
-}
-
-static void start_settings_httpd(httpd_handle_t *httpd)
-{
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 32; /* default 8 will be too small */
-    config.stack_size = 10*1024;
-    config.uri_match_fn = httpd_uri_match_wildcard;
-
-    if (httpd_start(httpd, &config) != ESP_OK) {
-        ESP_LOGW(TAG, "Error starting server");
-        return;
-    }
-
-    ESP_ERROR_CHECK( http_html_cmn_register(*httpd) );
-    ESP_ERROR_CHECK( http_wifi_conf_register(*httpd) );
-    ESP_ERROR_CHECK( http_alarm_conf_register(*httpd) );
-}
-
-static enum app_mode handle_initial(void)
-{
-    httpd_handle_t httpd = NULL;
-    char ssid[SWIFI_SSID_LEN];
-    char password[SWIFI_PW_LEN];
-    ESP_LOGD(TAG, "handle_initial");
-
-    simple_wifi_clear_ap();
-    simple_wifi_start(SIMPLE_WIFI_MODE_STA_SOFTAP);
-
-    simple_wifi_get_ssid(ssid);
-    simple_wifi_get_password(password);
-    ESP_LOGI(TAG, "SoftAP: SSID=%s, password=%s", ssid, password);
-
-    start_initial_httpd(&httpd);
-
-    while (true) {
-        vTaskDelay(2000/portTICK_PERIOD_MS);
-    }
-
-    httpd_stop(httpd);
-    return http_wifi_conf_configured()? APP_MODE_INITIALSYNC: APP_MODE_INITIAL;
-}
-
-static enum app_mode handle_initialsync(void)
-{
-    esp_err_t err;
-    ESP_LOGD(TAG, "handle_initialsync");
-
-    err = app_clock_start_sync();
-    if (err != ESP_OK) {
-        return APP_MODE_INITIAL;
-    }
-
-    while (true) {
-        if (app_clock_is_done()) {
-            app_clock_stop_sync();
-            return clock_is_valid()? APP_MODE_CLOCK: APP_MODE_INITIAL;
-        }
-        vTaskDelay(1000/portTICK_PERIOD_MS);
-    }
-}
-
-static enum app_mode handle_clock(void)
-{
-    enum app_action action;
-    ESP_LOGD(TAG, "handle_clock");
-
-    while (true) {
-        struct tm tm;
-        char buf_date[11], buf_time[11];
-        clock_localtime(&tm);
-        strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
-        strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
-        printf("Time is: %s %s\n", buf_date, buf_time);
-        action = app_switches_get_action();
-        if (action == (APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE)) {
-            return APP_MODE_SETTINGS;
-        }
-        vTaskDelay(1000/portTICK_PERIOD_MS);
-    }
-
-    return APP_MODE_CLOCK;
-}
-
-static enum app_mode handle_settings(void)
-{
-    enum app_action action;
-    httpd_handle_t httpd = NULL;
-    char ssid[SWIFI_SSID_LEN];
-    char password[SWIFI_PW_LEN];
-    ESP_LOGD(TAG, "handle_settings");
-
-    lan_manager_request_softap();
-
-    simple_wifi_get_ssid(ssid);
-    simple_wifi_get_password(password);
-    ESP_LOGI(TAG, "SoftAP: SSID=%s, password=%s", ssid, password);
-
-    start_settings_httpd(&httpd);
-
-    while (true) {
-        action = app_switches_get_action();
-        if (action == (APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE)) {
-            break;
-        }
-        vTaskDelay(1000/portTICK_PERIOD_MS);
-    }
-
-    httpd_stop(httpd);
-    lan_manager_release_conn();
-    return APP_MODE_CLOCK;
-}
+static app_mode_t s_mode = APP_MODE_INITIAL;
 
 static esp_err_t app_init_nvs(void)
 {
@@ -191,11 +53,19 @@ static esp_err_t app_init_nvs(void)
     return err;
 }
 
+extern app_mode_t app_mode_get_current(void)
+{
+    return s_mode;
+}
+
 void app_main(void)
 {
     ESP_LOGD(TAG, "Started");
 
+    ESP_ERROR_CHECK( esp_event_loop_create_default() );
+    ESP_ERROR_CHECK( app_event_init() );
     ESP_ERROR_CHECK( app_switches_init() );
+    ESP_ERROR_CHECK( app_clock_init() );
     ESP_ERROR_CHECK( simple_wifi_init() );
     ESP_ERROR_CHECK( lan_manager_init() );
     ESP_ERROR_CHECK( app_init_nvs() );
@@ -212,10 +82,10 @@ void app_main(void)
     }
     while (true) {
         switch (s_mode) {
-        case APP_MODE_INITIAL: s_mode = handle_initial(); break;
-        case APP_MODE_INITIALSYNC: s_mode = handle_initialsync(); break;
-        case APP_MODE_CLOCK: s_mode = handle_clock(); break;
-        case APP_MODE_SETTINGS: s_mode = handle_settings(); break;
+        case APP_MODE_INITIAL: s_mode = app_mode_initial(); break;
+        case APP_MODE_INITIALSYNC: s_mode = app_mode_initialsync(); break;
+        case APP_MODE_CLOCK: s_mode = app_mode_clock(); break;
+        case APP_MODE_SETTINGS: s_mode = app_mode_settings(); break;
         }
     }
 }

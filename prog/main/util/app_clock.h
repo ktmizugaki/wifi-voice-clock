@@ -15,27 +15,24 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <esp_err.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-enum app_action {
-    APP_ACTION_NONE = 0,
-    APP_ACTION_LEFT = 0x0002,
-    APP_ACTION_RIGHT = 0x0001,
-    APP_ACTION_MIDDLE = 0x0004,
-    APP_ACTION_FLAG_PRESS = 0x2000,
-    APP_ACTION_FLAG_RELEASE = 0x4000,
-    APP_ACTION_FLAG_LONG = 0x8000,
+enum app_sync_state {
+    APP_SYNC_WIFI,
+    APP_SYNC_SNTP,
+    APP_SYNC_FAIL,
+    APP_SYNC_SUCCESS,
 };
 
-extern void app_switches_enable_wake(void);
-extern int app_switches_check_wake(void);
-extern esp_err_t app_switches_init(void);
-extern void app_switches_wait_up(void);
-extern enum app_action app_switches_get_action(void);
+extern esp_err_t app_clock_init(void);
+extern esp_err_t app_clock_start_sync(void);
+extern void app_clock_stop_sync(void);
+extern bool app_clock_is_done(void);
 
 #ifdef __cplusplus
 }

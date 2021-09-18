@@ -1,4 +1,7 @@
-idf_component_register(SRCS "app_main.c" "app_clock.c" "app_switches.c"
+idf_component_register(SRCS "app_main.c"
+                "app_mode_initial.c" "app_mode_initialsync.c" "app_mode_clock.c" "app_mode_settings.c"
+                "util/app_clock.c" "util/app_switches.c" "util/app_event.c"
+        PRIV_INCLUDE_DIRS "util"
         EMBED_FILES
                 gen/nvskey.dat
         REQUIRES switches clock lan_manager

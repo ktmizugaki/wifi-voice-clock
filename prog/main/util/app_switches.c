@@ -24,6 +24,7 @@
 #include <switches.h>
 
 #include "app_switches.h"
+#include "app_event.h"
 
 #define TAG "switches"
 
@@ -33,12 +34,10 @@
 #define SWITCH_MASK     (BIT64(SWITCH_1)|BIT64(SWITCH_2)|BIT64(SWITCH_3))
 #define NUM_SWITCHES    3
 
-static enum app_action s_last_action = APP_ACTION_NONE;
-
 static void app_switches_callback(enum switch_flags action, enum switch_flags prev_state)
 {
     ESP_LOGI(TAG, "action: %#x, prev_state: %#x", action, prev_state);
-    s_last_action = (enum app_action)action;
+    app_event_send_args(APP_EVENT_ACTION, action, prev_state);
 }
 
 void app_switches_enable_wake(void)
@@ -85,9 +84,7 @@ void app_switches_wait_up(void)
     vTaskDelay(50/portTICK_PERIOD_MS);
 }
 
-enum app_action app_switches_get_action(void)
+enum app_action app_switches_get_state(void)
 {
-    enum app_action action = s_last_action;
-    s_last_action = APP_ACTION_NONE;
-    return action;
+    return (enum app_action)switches_get_state();
 }

@@ -26,6 +26,7 @@
 #include <clock_sync.h>
 
 #include "app_clock.h"
+#include "app_event.h"
 
 #define TAG "clock"
 
@@ -46,12 +47,14 @@ static void start_sntp(void)
 
     err = http_wifi_conf_get_ntp(ntp_server);
     if (err != ESP_OK || ntp_server[0] == '\0') {
-        app_clock_stop_sync();
+        s_sync_state = SYNC_STATE_DONE;
+        app_event_send_arg(APP_EVENT_SYNC, APP_SYNC_FAIL);
         return;
     }
     ESP_LOGI(TAG, "start sntp to %s", ntp_server);
     clock_sync_sntp_start(ntp_server);
     s_sync_state = SYNC_STATE_WAITING_SNTP;
+    app_event_send_arg(APP_EVENT_SYNC, APP_SYNC_SNTP);
 }
 
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
@@ -66,6 +69,9 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         }
     } else if (event_base == CLOCK) {
         switch(event_id) {
+        case CLOCK_EVENT_SECOND:
+            app_event_send(APP_EVENT_CLOCK);
+            break;
         case CLOCK_EVENT_SYNC_OK:
         case CLOCK_EVENT_SYNC_FAIL:
         case CLOCK_EVENT_SYNC_TIMEOUT:
@@ -76,10 +82,21 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
                     ESP_LOGI(TAG, "clock failed to sync");
                 }
                 s_sync_state = SYNC_STATE_DONE;
+                app_event_send_arg(APP_EVENT_SYNC,
+                    event_id==CLOCK_EVENT_SYNC_OK? APP_SYNC_SUCCESS: APP_SYNC_FAIL);
             }
             break;
         }
     }
+}
+
+esp_err_t app_clock_init(void)
+{
+    ESP_ERROR_CHECK( esp_event_handler_register(
+        SIMPLE_WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL) );
+    ESP_ERROR_CHECK( clock_register_event_handler(event_handler, NULL) );
+    ESP_ERROR_CHECK( clock_start() );
+    return ESP_OK;
 }
 
 esp_err_t app_clock_start_sync(void)
@@ -94,9 +111,6 @@ esp_err_t app_clock_start_sync(void)
         ESP_LOGI(TAG, "start connecting failed");
         return ESP_ERR_INVALID_STATE;
     }
-    ESP_ERROR_CHECK( esp_event_handler_register(
-        SIMPLE_WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL) );
-    ESP_ERROR_CHECK( clock_register_event_handler(event_handler, NULL) );
 
     s_sync_state = SYNC_STATE_WAITING_CONNECTED;
     s_syncing = true;

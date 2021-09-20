@@ -26,6 +26,9 @@
 #include "app_switches.h"
 #include "app_mode.h"
 
+#include "app_display.h"
+#include "app_display_clock.h"
+
 #define TAG "initialsync"
 
 static void update_clock(void)
@@ -36,12 +39,17 @@ static void update_clock(void)
     strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
     strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
     printf("Time is: %s %s\n", buf_date, buf_time);
+    app_display_clock(&tm);
+    app_display_update();
 }
 
 app_mode_t app_mode_initialsync(void)
 {
     esp_err_t err;
     ESP_LOGD(TAG, "handle_initialsync");
+    app_display_ensure_reset();
+    app_display_clear();
+    update_clock();
 
     err = app_clock_start_sync();
     if (err != ESP_OK) {

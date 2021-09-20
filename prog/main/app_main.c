@@ -28,6 +28,7 @@
 #include "app_event.h"
 #include "app_clock.h"
 #include "app_switches.h"
+#include "app_display.h"
 #include "app_mode.h"
 
 #define TAG "main"
@@ -62,6 +63,7 @@ void app_main(void)
 {
     ESP_LOGD(TAG, "Started");
 
+    ESP_ERROR_CHECK( app_display_init() );
     ESP_ERROR_CHECK( esp_event_loop_create_default() );
     ESP_ERROR_CHECK( app_event_init() );
     ESP_ERROR_CHECK( app_switches_init() );

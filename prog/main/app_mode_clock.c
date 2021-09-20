@@ -26,6 +26,9 @@
 #include "app_switches.h"
 #include "app_mode.h"
 
+#include "app_display.h"
+#include "app_display_clock.h"
+
 #define TAG "main_clock"
 
 static void update_clock(void)
@@ -36,11 +39,17 @@ static void update_clock(void)
     strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
     strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
     printf("Time is: %s %s\n", buf_date, buf_time);
+    app_display_clock(&tm);
+    app_display_update();
 }
 
 app_mode_t app_mode_clock(void)
 {
+    bool clock_on = true;
     ESP_LOGD(TAG, "handle_clock");
+    app_display_ensure_reset();
+    app_display_clear();
+    update_clock();
 
     while (true) {
         app_event_t event;
@@ -48,12 +57,29 @@ app_mode_t app_mode_clock(void)
             switch (event.id) {
             case APP_EVENT_ACTION:
                 switch (event.arg0) {
+                case APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE:
+                    if (clock_on) {
+                        ESP_LOGD(TAG, "turn off clock");
+                        clock_on = false;
+                        app_display_off();
+                    }
+                    break;
+                case APP_ACTION_RIGHT|APP_ACTION_FLAG_RELEASE:
+                    if (!clock_on) {
+                        ESP_LOGD(TAG, "turn on clock");
+                        clock_on = true;
+                        app_display_on();
+                        update_clock();
+                    }
+                    break;
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
                     return APP_MODE_SETTINGS;
                 }
                 break;
             case APP_EVENT_CLOCK:
-                update_clock();
+                if (clock_on) {
+                    update_clock();
+                }
                 break;
             case APP_EVENT_SYNC:
                 break;

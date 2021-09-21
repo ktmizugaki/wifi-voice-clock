@@ -19,27 +19,9 @@
 extern "C" {
 #endif
 
-#define COLOR_BLACK     0x000000
-#define COLOR_WHITE     0xffffff
-#define DRMODE_COMPLEMENT 0
-#define DRMODE_BG         1
-#define DRMODE_FG         2
-#define DRMODE_SOLID      3
-
-typedef struct abstract_lcd abstract_lcd_t;
-
-extern unsigned int gfx_get_width(abstract_lcd_t *lcd);
-extern unsigned int gfx_get_height(abstract_lcd_t *lcd);
-extern void gfx_clear(abstract_lcd_t *lcd);
-extern void gfx_flush(abstract_lcd_t *lcd);
-
-extern void gfx_set_fg_color(abstract_lcd_t *lcd, unsigned int color);
-extern void gfx_set_bg_color(abstract_lcd_t *lcd, unsigned int color);
-extern void gfx_set_drawmode(abstract_lcd_t *lcd, unsigned int drawmode);
-
-#include "gfx_primitive.h"
-#include "gfx_bitmap.h"
 #include "gfx_text.h"
+
+extern const gfx_font_t gfx_tinyfont;
 
 #ifdef __cplusplus
 }

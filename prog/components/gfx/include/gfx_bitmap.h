@@ -15,31 +15,32 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define COLOR_BLACK     0x000000
-#define COLOR_WHITE     0xffffff
-#define DRMODE_COMPLEMENT 0
-#define DRMODE_BG         1
-#define DRMODE_FG         2
-#define DRMODE_SOLID      3
-
 typedef struct abstract_lcd abstract_lcd_t;
 
-extern unsigned int gfx_get_width(abstract_lcd_t *lcd);
-extern unsigned int gfx_get_height(abstract_lcd_t *lcd);
-extern void gfx_clear(abstract_lcd_t *lcd);
-extern void gfx_flush(abstract_lcd_t *lcd);
+typedef struct {
+    uint16_t width;
+    uint16_t height;
+    uint16_t scansize;
+    uint8_t depth;
+} gfx_bitmap_header_t;
 
-extern void gfx_set_fg_color(abstract_lcd_t *lcd, unsigned int color);
-extern void gfx_set_bg_color(abstract_lcd_t *lcd, unsigned int color);
-extern void gfx_set_drawmode(abstract_lcd_t *lcd, unsigned int drawmode);
+typedef struct gfx_bitmap {
+    gfx_bitmap_header_t header;
+    uint8_t *data;
+} gfx_bitmap_t;
 
-#include "gfx_primitive.h"
-#include "gfx_bitmap.h"
-#include "gfx_text.h"
+extern void gfx_draw_bitmap(abstract_lcd_t *lcd,
+    const gfx_bitmap_t *src, int x, int y, int width, int height);
+
+extern void gfx_draw_bitmap_part(abstract_lcd_t *lcd,
+    const gfx_bitmap_t *src, int src_x, int src_y,
+    int x, int y, int width, int height);
 
 #ifdef __cplusplus
 }

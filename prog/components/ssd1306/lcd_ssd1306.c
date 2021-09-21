@@ -15,7 +15,7 @@
 
 #include <string.h>
 #include <gfx.h>
-#include <lcd_generic.h>
+#include <lcd_1bit_vert.h>
 #include "ssd1306.h"
 #include "lcd_ssd1306.h"
 #include "ssd1306_common.h"
@@ -28,6 +28,20 @@ static inline lcd_ssd1306_t *get_lcd(abstract_lcd_t *this)
 static inline ssd1306_t *get_device(abstract_lcd_t *this)
 {
     return get_lcd(this)->device;
+}
+
+static inline gfx_bitmap_t get_dst(ssd1306_t *device)
+{
+    gfx_bitmap_t dst = {
+        .header = {
+            .width = device->width,
+            .height = device->height,
+            .depth = 1,
+            .scansize = SSD1306_ROWS(device->height),
+        },
+        .data = device->buffer,
+    };
+    return dst;
 }
 
 static unsigned int lcd_ssd1306_get_width(abstract_lcd_t *this)
@@ -106,6 +120,39 @@ static void lcd_ssd1306_drawpixel(abstract_lcd_t *this, int x, int y)
     }
 }
 
+static void lcd_ssd1306_hline(abstract_lcd_t *this,
+    int x1, int x2, int y)
+{
+    lcd_ssd1306_t *lcd = get_lcd(this);
+    gfx_bitmap_t dst = get_dst(lcd->device);
+    lcd_1bit_vert_hline(&dst, lcd->fg_color, lcd->drawmode, x1, x2, y);
+}
+
+static void lcd_ssd1306_vline(abstract_lcd_t *this,
+    int x, int y1, int y2)
+{
+    lcd_ssd1306_t *lcd = get_lcd(this);
+    gfx_bitmap_t dst = get_dst(lcd->device);
+    lcd_1bit_vert_vline(&dst, lcd->fg_color, lcd->drawmode, x, y1, y2);
+}
+
+static void lcd_ssd1306_fillrect(abstract_lcd_t *this,
+    int x1, int y1, int x2, int y2)
+{
+    lcd_ssd1306_t *lcd = get_lcd(this);
+    gfx_bitmap_t dst = get_dst(lcd->device);
+    lcd_1bit_vert_fillrect(&dst, lcd->fg_color, lcd->drawmode, x1, y1, x2, y2);
+}
+
+static void lcd_ssd1306_drawbitmap(abstract_lcd_t *this,
+        const gfx_bitmap_t *src, int src_x, int src_y,
+        int x, int y, int width, int height)
+{
+    lcd_ssd1306_t *lcd = get_lcd(this);
+    gfx_bitmap_t dst = get_dst(lcd->device);
+    lcd_1bit_vert_drawbitmap(&dst, src, src_x, src_y, x, y, width, height);
+}
+
 static abstract_lcd_t base = {
     .get_width = lcd_ssd1306_get_width,
     .get_height = lcd_ssd1306_get_height,
@@ -115,9 +162,10 @@ static abstract_lcd_t base = {
     .set_bg_color = lcd_ssd1306_set_bg_color,
     .set_drawmode = lcd_ssd1306_set_drawmode,
     .drawpixel = lcd_ssd1306_drawpixel,
-    .hline = lcd_generic_hline,
-    .vline = lcd_generic_vline,
-    .fillrect = lcd_generic_fillrect_vert,
+    .hline = lcd_ssd1306_hline,
+    .vline = lcd_ssd1306_vline,
+    .fillrect = lcd_ssd1306_fillrect,
+    .drawbitmap = lcd_ssd1306_drawbitmap,
 };
 
 esp_err_t lcd_ssd1306_init(lcd_ssd1306_t *lcd, ssd1306_t *device)

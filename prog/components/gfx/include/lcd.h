@@ -20,6 +20,7 @@ extern "C" {
 #endif
 
 typedef struct abstract_lcd abstract_lcd_t;
+typedef struct gfx_bitmap gfx_bitmap_t;
 
 struct abstract_lcd {
     unsigned int (*get_width)(abstract_lcd_t *this);
@@ -35,6 +36,9 @@ struct abstract_lcd {
     void (*vline)(abstract_lcd_t *this, int x, int y1, int y2);
     void (*hline)(abstract_lcd_t *this, int x1, int x2, int y);
     void (*fillrect)(abstract_lcd_t *this, int x1, int y1, int x2, int y2);
+    void (*drawbitmap)(abstract_lcd_t *this,
+        const gfx_bitmap_t *src, int src_x, int src_y,
+        int x, int y, int width, int height);
 };
 
 #ifdef __cplusplus

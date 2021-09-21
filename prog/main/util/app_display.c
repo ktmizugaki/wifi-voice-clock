@@ -43,6 +43,7 @@ static const ssd1306_param_t s_param = {
 static lcd_ssd1306_t s_lcd = {};
 static ssd1306_t s_device = {};
 static bool s_reset = false;
+static bool s_on = false;
 
 esp_err_t app_display_init(void)
 {
@@ -82,18 +83,25 @@ void app_display_ensure_reset(void)
 
 void app_display_reset(void)
 {
+    s_on = true;
     ssd1306_reset(&s_device);
     app_display_clear();
 }
 
 void app_display_on(void)
 {
-    ssd1306_on(&s_device);
+    if (!s_on) {
+        s_on = true;
+        ssd1306_on(&s_device);
+    }
 }
 
 void app_display_off(void)
 {
-    ssd1306_sleep(&s_device);
+    if (s_on) {
+        s_on = false;
+        ssd1306_sleep(&s_device);
+    }
 }
 
 void app_display_clear(void)
@@ -104,4 +112,5 @@ void app_display_clear(void)
 void app_display_update(void)
 {
     ssd1306_flush(&s_device);
+    app_display_on();
 }

@@ -17,6 +17,7 @@
 
 #include <esp_err.h>
 #include <gfx.h>
+#include <gfx_tinyfont.h>
 
 #ifdef __cplusplus
 extern "C" {

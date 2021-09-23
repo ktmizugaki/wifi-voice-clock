@@ -35,11 +35,18 @@ static void update_clock(void)
 {
     struct tm tm;
     char buf_date[11], buf_time[11];
+    int y;
     clock_localtime(&tm);
     strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
     strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
     printf("Time is: %s %s\n", buf_date, buf_time);
+    gfx_set_fg_color(LCD, COLOR_BLACK);
+    y = LCD_HEIGHT-1-8*(1-(tm.tm_min&1));
+    gfx_draw_hline(LCD, 0, y, LCD_WIDTH-1, y);
     app_display_clock(&tm);
+    gfx_set_fg_color(LCD, COLOR_WHITE);
+    gfx_text_puts_xy(LCD, &gfx_tinyfont, buf_date, 0, LCD_HEIGHT-8-(tm.tm_min&1));
+    gfx_text_puts_xy(LCD, &gfx_tinyfont, buf_time, LCD_WIDTH-48, LCD_HEIGHT-8-(tm.tm_min&1));
     app_display_update();
 }
 

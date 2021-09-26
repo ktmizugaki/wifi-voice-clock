@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <stdlib.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -42,9 +44,11 @@ typedef struct {
     uint16_t last;
     uint16_t default_char;
     uint8_t height;
-    gfx_glyph_t *glyphs;
-    uint8_t *bitmap;
+    const gfx_glyph_t *glyphs;
+    const uint8_t *bitmap;
 } gfx_font_t;
+
+extern bool gfx_font_from_mem(gfx_font_t *font, const void *memory, size_t size);
 
 extern void gfx_text_puts_xy(abstract_lcd_t *lcd,
     const gfx_font_t *font, const char *str, int x, int y);

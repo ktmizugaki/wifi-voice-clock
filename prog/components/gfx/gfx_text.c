@@ -15,11 +15,32 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "lcd.h"
 #include "gfx_text.h"
 #include "gfx_bitmap.h"
 #include "trace.h"
+
+#if 0
+static char *ucs22str(uint16_t ucs, char str[4])
+{
+    if (ucs < 0x80) {
+        str[0] = ucs;
+        str[1] = 0;
+    } else if (ucs < 0x0800) {
+        str[0] = 0xc0|(ucs>>6);
+        str[1] = 0x80|(ucs&0x3f);
+        str[2] = 0;
+    } else {
+        str[0] = 0xe0|(ucs>>12);
+        str[1] = 0x80|((ucs>>6)&0x3f);
+        str[2] = 0x80|(ucs&0x3f);
+        str[3] = 0;
+    }
+    return str;
+}
+#endif
 
 static uint16_t get_ucs2(const char **str)
 {
@@ -60,6 +81,64 @@ static uint16_t get_ucs2(const char **str)
     return ucs;
 }
 
+bool gfx_font_from_mem(gfx_font_t *font, const void *memory, size_t size)
+{
+    const uint8_t *ptr = memory;
+    int i;
+    uint16_t unicode;
+    if (size < 16) {
+        /* header is too small */
+        return false;
+    }
+    memcpy(font->magic, ptr, 4); ptr += 4;
+    memcpy(&font->glyph_count, ptr, 2); ptr += 2;
+    memcpy(&font->first, ptr, 2); ptr += 2;
+    memcpy(&font->last, ptr, 2); ptr += 2;
+    memcpy(&font->default_char, ptr, 2); ptr += 2;
+    memcpy(&font->height, ptr, 1); ptr += 1;
+    ptr += 3;
+    size -= 16;
+    if (memcmp(font->magic, FONT_MAGIC_STR, 4) != 0) {
+        /* not font magic */
+        return false;
+    }
+    if (font->glyph_count > size/8) {
+        /* glyph_count is too large */
+        return false;
+    }
+    if (font->first > font->last || font->first+font->glyph_count > font->last) {
+        /* invalid first or last */
+        return false;
+    }
+    if (font->default_char < font->first || font->default_char > font->last) {
+        /* invalid default_char */
+        return false;
+    }
+    if (font->height == 0) {
+        /* invalid height */
+        return false;
+    }
+    font->glyphs = (gfx_glyph_t*)ptr;
+    font->bitmap = ptr+font->glyph_count*8;
+    size -= font->glyph_count*8;
+    unicode = 0;
+    for (i = 0; i < font->glyph_count; i++) {
+        const gfx_glyph_t *glyph = font->glyphs+i;
+        int offset = glyph->bitmap_offset;
+        offset += ((glyph->width+7)/8) & font->height;
+        if (offset >= size) {
+            /* invalid bitmap offset in glyph at %d */
+            return false;
+        }
+        if (i > 0 && !(unicode < glyph->unicode)) {
+            /* unicode is not strictly increasing */
+            return false;
+        }
+        unicode = glyph->unicode;
+    }
+    return true;
+}
+
 void gfx_text_puts_xy(abstract_lcd_t *lcd,
     const gfx_font_t *font, const char *str, int x, int y)
 {
@@ -75,7 +154,7 @@ void gfx_text_puts_xy(abstract_lcd_t *lcd,
         src.header.height = font->height;
         src.header.scansize = (glyph->width+7)/8;
         src.header.depth = 1;
-        src.data = font->bitmap+glyph->bitmap_offset;
+        src.data = (uint8_t*)font->bitmap+glyph->bitmap_offset;
         gfx_draw_bitmap(lcd, &src, x+glyph->x_offset, y+glyph->y_offset,
             src.header.width, src.header.height);
 

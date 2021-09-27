@@ -45,6 +45,9 @@ static ssd1306_t s_device = {};
 static bool s_reset = false;
 static bool s_on = false;
 
+gfx_font_t font_shinonome14;
+gfx_font_t font_shinonome12;
+
 esp_err_t app_display_init(void)
 {
     esp_err_t err;
@@ -62,6 +65,17 @@ esp_err_t app_display_init(void)
         ssd1306_deinit(&s_device);
         return ESP_FAIL;
     }
+    extern const uint8_t shnm14_start[] asm("_binary_font_shinonome14_fnt_start");
+    extern const uint8_t shnm14_end[] asm("_binary_font_shinonome14_fnt_end");
+    if (!gfx_font_from_mem(&font_shinonome14, shnm14_start, shnm14_end-shnm14_start)) {
+        ESP_LOGW(TAG, "failed to init shinonome14");
+    }
+    extern const uint8_t shnm12_start[] asm("_binary_font_shinonome12_fnt_start");
+    extern const uint8_t shnm12_end[] asm("_binary_font_shinonome12_fnt_end");
+    if (!gfx_font_from_mem(&font_shinonome12, shnm12_start, shnm12_end-shnm12_start)) {
+        ESP_LOGW(TAG, "failed to init shinonome12");
+    }
+
     return ESP_OK;
 }
 

@@ -31,6 +31,8 @@
 #include "app_mode.h"
 
 #include "app_display.h"
+#include "app_display_softap.h"
+#include "gen/lang.h"
 
 #define TAG "initial"
 
@@ -80,32 +82,18 @@ static void start_initial_httpd(httpd_handle_t *httpd)
 app_mode_t app_mode_initial(void)
 {
     httpd_handle_t httpd = NULL;
-    char ssid[SWIFI_SSID_LEN];
-    char password[SWIFI_PW_LEN];
-    int w;
     ESP_LOGD(TAG, "handle_initial");
 
     app_display_ensure_reset();
     app_display_clear();
+    gfx_text_puts_xy(LCD, &font_shinonome12, LANG_INITIAL_CONF, 0, 0);
+    gfx_draw_hline(LCD, 0, 12, LCD_WIDTH-1, 12);
+    app_display_update();
 
     simple_wifi_clear_ap();
     simple_wifi_start(SIMPLE_WIFI_MODE_STA_SOFTAP);
 
-    simple_wifi_get_ssid(ssid);
-    simple_wifi_get_password(password);
-    ESP_LOGI(TAG, "SoftAP: SSID=%s, password=%s", ssid, password);
-
-    gfx_text_puts_xy(LCD, &gfx_tinyfont, "SSID:", 0, 16);
-    gfx_text_get_bounds(LCD, &gfx_tinyfont, ssid, NULL, NULL, &w, NULL);
-    if (36+w < LCD_WIDTH-4) {
-        gfx_text_puts_xy(LCD, &gfx_tinyfont, ssid, 36, 16);
-    } else if (6+w < LCD_WIDTH-4) {
-        gfx_text_puts_xy(LCD, &gfx_tinyfont, ssid, 6, 24);
-    } else {
-        gfx_text_puts_xy(LCD, &gfx_tinyfont, ssid, LCD_WIDTH-4-w, 24);
-    }
-    gfx_text_puts_xy(LCD, &gfx_tinyfont, "PASS:", 0, 24);
-    gfx_text_puts_xy(LCD, &gfx_tinyfont, password, 36, 24);
+    app_display_sfotap(LANG_INITIAL_CONF);
     app_display_update();
 
     start_initial_httpd(&httpd);

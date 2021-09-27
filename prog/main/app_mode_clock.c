@@ -14,6 +14,7 @@
  */
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <time.h>
 #include <esp_err.h>
@@ -28,35 +29,50 @@
 
 #include "app_display.h"
 #include "app_display_clock.h"
+#include "gen/lang.h"
 
 #define TAG "main_clock"
 
-static void update_clock(void)
+struct clock_mode_state {
+    bool on;
+    int8_t date_on;
+};
+
+static void update_clock(struct clock_mode_state *state)
 {
     struct tm tm;
     char buf_date[11], buf_time[11];
-    int y;
+    int w, h;
     clock_localtime(&tm);
     strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
     strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
     printf("Time is: %s %s\n", buf_date, buf_time);
-    gfx_set_fg_color(LCD, COLOR_BLACK);
-    y = LCD_HEIGHT-1-8*(1-(tm.tm_min&1));
-    gfx_draw_hline(LCD, 0, y, LCD_WIDTH-1, y);
+    if (state->date_on >= 0) {
+        gfx_set_fg_color(LCD, COLOR_BLACK);
+        gfx_text_get_bounds(LCD, &font_shinonome14, LANG_DIGITS, NULL, NULL, NULL, &h);
+        gfx_fill_rect(LCD, 2, LCD_HEIGHT-h, LCD_WIDTH-2, LCD_HEIGHT);
+    }
     app_display_clock(&tm);
-    gfx_set_fg_color(LCD, COLOR_WHITE);
-    gfx_text_puts_xy(LCD, &gfx_tinyfont, buf_date, 0, LCD_HEIGHT-8-(tm.tm_min&1));
-    gfx_text_puts_xy(LCD, &gfx_tinyfont, buf_time, LCD_WIDTH-48, LCD_HEIGHT-8-(tm.tm_min&1));
+    if (state->date_on > 0) {
+        strftime(buf_date, sizeof(buf_date), "%Y.", &tm);
+        strftime(buf_time, sizeof(buf_time), "%m.%d", &tm);
+        gfx_set_fg_color(LCD, COLOR_WHITE);
+        gfx_text_get_bounds(LCD, &font_shinonome14, buf_date, NULL, NULL, &w, &h);
+        gfx_text_puts_xy(LCD, &font_shinonome14, buf_date, 2, LCD_HEIGHT-h);
+
+        gfx_text_get_bounds(LCD, &font_shinonome14, buf_time, NULL, NULL, &w, &h);
+        gfx_text_puts_xy(LCD, &font_shinonome14, buf_time, LCD_WIDTH-2-w, LCD_HEIGHT-h);
+    }
     app_display_update();
 }
 
 app_mode_t app_mode_clock(void)
 {
-    bool clock_on = true;
+    struct clock_mode_state state = { true, 8, };
     ESP_LOGD(TAG, "handle_clock");
     app_display_ensure_reset();
     app_display_clear();
-    update_clock();
+    update_clock(&state);
 
     while (true) {
         app_event_t event;
@@ -65,18 +81,19 @@ app_mode_t app_mode_clock(void)
             case APP_EVENT_ACTION:
                 switch (event.arg0) {
                 case APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE:
-                    if (clock_on) {
+                    if (state.on) {
                         ESP_LOGD(TAG, "turn off clock");
-                        clock_on = false;
+                        state.on = false;
                         app_display_off();
                     }
                     break;
                 case APP_ACTION_RIGHT|APP_ACTION_FLAG_RELEASE:
-                    if (!clock_on) {
+                    if (!state.on) {
                         ESP_LOGD(TAG, "turn on clock");
-                        clock_on = true;
+                        state.on = true;
+                        state.date_on = 8;
                         app_display_on();
-                        update_clock();
+                        update_clock(&state);
                     }
                     break;
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
@@ -84,8 +101,11 @@ app_mode_t app_mode_clock(void)
                 }
                 break;
             case APP_EVENT_CLOCK:
-                if (clock_on) {
-                    update_clock();
+                if (state.on) {
+                    if (state.date_on >= 0) {
+                        state.date_on--;
+                    }
+                    update_clock(&state);
                 }
                 break;
             case APP_EVENT_SYNC:

@@ -1,3 +1,6 @@
-idf_component_register(SRCS "http_wifi_conf.c"
+idf_component_register(SRCS "http_html_cmn.c"
         INCLUDE_DIRS "include"
-        REQUIRES esp_http nvs_flash)
+        EMBED_FILES
+                html/cmn.js
+                html/cmn.css
+        REQUIRES esp_http_server nvs_flash)

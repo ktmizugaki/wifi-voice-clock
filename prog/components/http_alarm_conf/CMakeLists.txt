@@ -1,3 +1,5 @@
 idf_component_register(SRCS "http_alarm_conf.c" "alarm.c"
         INCLUDE_DIRS "include"
-        REQUIRES esp_http nvs_flash json_str)
+        EMBED_FILES
+                html/http_alarm_conf.html
+        REQUIRES http_html_cmn esp_http_server nvs_flash json_str)

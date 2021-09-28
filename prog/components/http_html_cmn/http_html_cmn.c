@@ -20,8 +20,6 @@
 
 #include <esp_http_server.h>
 
-#include <simple_wifi.h>
-
 #include "http_html_cmn.h"
 
 #define TAG "html_cmn"

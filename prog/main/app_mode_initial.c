@@ -24,6 +24,7 @@
 #include <simple_wifi.h>
 #include <http_html_cmn.h>
 #include <http_wifi_conf.h>
+#include <wifi_conf.h>
 
 #include "app_event.h"
 #include "app_clock.h"
@@ -116,5 +117,5 @@ app_mode_t app_mode_initial(void)
 
 end:
     httpd_stop(httpd);
-    return http_wifi_conf_configured()? APP_MODE_INITIALSYNC: APP_MODE_INITIAL;
+    return wifi_conf_configured()? APP_MODE_INITIALSYNC: APP_MODE_INITIAL;
 }

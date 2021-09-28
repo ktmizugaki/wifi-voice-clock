@@ -325,7 +325,14 @@ esp_err_t simple_wifi_connect(void)
     const struct simple_wifi_ap_static_conf *conf;
     const wifi_ap_record_t *ap;
 
+    expire_scan_result();
     simple_wifi__lock(portMAX_DELAY);
+    if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
+        esp_err_t ret = simple_connection_state == SIMPLE_WIFI_DISCONNECTING? ESP_ERR_INVALID_STATE: ESP_OK;
+        simple_wifi__unlock();
+        ESP_LOGD(TAG, "state is not disconnected");
+        return ret;
+    }
     xSemaphoreTake(s_scan_result_mutex, portMAX_DELAY);
     if (!(simple_wifi_mode & SIMPLE_WIFI_MODE_STA)) {
         xSemaphoreGive(s_scan_result_mutex);
@@ -333,22 +340,17 @@ esp_err_t simple_wifi_connect(void)
         ESP_LOGD(TAG, "not in sta mode");
         return ESP_ERR_INVALID_STATE;
     }
-    if (s_num_scan_result == 0 || s_num_ap_conf == 0) {
+    if (s_num_ap_conf == 0) {
         xSemaphoreGive(s_scan_result_mutex);
         simple_wifi__unlock();
         ESP_LOGD(TAG, "no ap configured: %d, %d", s_num_scan_result, s_num_ap_conf);
         return ESP_ERR_INVALID_STATE;
     }
-    if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
-        xSemaphoreGive(s_scan_result_mutex);
-        simple_wifi__unlock();
-        ESP_LOGD(TAG, "state is not disconnected");
-        return ESP_OK;
-    }
 
     if (!find_ap_conf_from_scan((const struct simple_wifi_ap_conf**)&conf, &ap)) {
         xSemaphoreGive(s_scan_result_mutex);
         simple_wifi__unlock();
+        swifi_event_post(STA_FAIL, NULL, 0);
         ESP_LOGW(TAG, "No matching ap");
         return ESP_FAIL;
     }
@@ -404,7 +406,7 @@ esp_err_t simple_wifi_connect_direct(const char *ssid)
     if (simple_connection_state != SIMPLE_WIFI_DISCONNECTED) {
         simple_wifi__unlock();
         ESP_LOGD(TAG, "state is not disconnected");
-        return ESP_OK;
+        return ESP_FAIL;
     }
 
     if (!find_ap_conf(ssid, (const struct simple_wifi_ap_conf**)&conf)) {

@@ -1,4 +1,4 @@
-idf_component_register(SRCS "http_wifi_conf.c"
+idf_component_register(SRCS "http_wifi_conf.c" "wifi_conf.c"
         INCLUDE_DIRS "include"
         EMBED_FILES
                 html/http_wifi_conf.html

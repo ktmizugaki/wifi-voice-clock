@@ -171,6 +171,9 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             {
                 wifi_event_sta_disconnected_t *event = event_data;
                 ESP_LOGV(TAG, "Disconnect reason: %u", event->reason);
+                if (event->reason == WIFI_REASON_NO_AP_FOUND) {
+                    simple_sta_retry = 0;
+                }
             }
             simple_wifi__lock(portMAX_DELAY);
             if (simple_sta_retry == 0 || simple_connection_state != SIMPLE_WIFI_CONNECTED) {

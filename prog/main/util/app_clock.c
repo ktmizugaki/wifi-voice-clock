@@ -20,7 +20,7 @@
 #include <esp_event.h>
 #include <simple_wifi.h>
 #include <simple_wifi_event.h>
-#include <http_wifi_conf.h>
+#include <wifi_conf.h>
 #include <lan_manager.h>
 #include <clock.h>
 #include <clock_sync.h>
@@ -45,7 +45,7 @@ static void start_sntp(void)
     char ntp_server[WIFI_CONF_NTP_SERVER_LENGTH] = "";
     esp_err_t err;
 
-    err = http_wifi_conf_get_ntp(ntp_server);
+    err = wifi_conf_get_ntp(ntp_server);
     if (err != ESP_OK || ntp_server[0] == '\0') {
         s_sync_state = SYNC_STATE_DONE;
         app_event_send_arg(APP_EVENT_SYNC, APP_SYNC_FAIL);
@@ -64,6 +64,13 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         case SIMPLE_WIFI_EVENT_STA_CONNECTED:
             if (s_sync_state == SYNC_STATE_WAITING_CONNECTED) {
                 start_sntp();
+            }
+            break;
+        case SIMPLE_WIFI_EVENT_STA_DISCONNECTED:
+        case SIMPLE_WIFI_EVENT_STA_FAIL:
+            if (s_sync_state == SYNC_STATE_WAITING_CONNECTED) {
+                s_sync_state = SYNC_STATE_DONE;
+                app_event_send_arg(APP_EVENT_SYNC, APP_SYNC_FAIL);
             }
             break;
         }

@@ -21,7 +21,7 @@
 #include <esp_log.h>
 
 #include <simple_wifi.h>
-#include <http_wifi_conf.h>
+#include <wifi_conf.h>
 #include <lan_manager.h>
 #include <clock.h>
 
@@ -75,7 +75,7 @@ void app_main(void)
     setenv("TZ", "JST-9", 1);
     tzset();
 
-    if (!http_wifi_conf_configured()) {
+    if (!wifi_conf_configured()) {
         s_mode = APP_MODE_INITIAL;
     } else if (!clock_is_valid()) {
         s_mode = APP_MODE_INITIALSYNC;

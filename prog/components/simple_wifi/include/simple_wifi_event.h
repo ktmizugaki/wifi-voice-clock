@@ -27,6 +27,7 @@ typedef enum {
     SIMPLE_WIFI_EVENT_SCAN_DONE,                /**< ESP32 finish scanning AP */
     SIMPLE_WIFI_EVENT_STA_CONNECTED,            /**< ESP32 station connected to AP */
     SIMPLE_WIFI_EVENT_STA_DISCONNECTED,         /**< ESP32 station disconnected from AP */
+    SIMPLE_WIFI_EVENT_STA_FAIL,                 /**< ESP32 station failed to connect to AP */
 
     SIMPLE_WIFI_EVENT_SOFTAP_START,             /**< ESP32 soft-AP start */
     SIMPLE_WIFI_EVENT_SOFTAP_STOP,              /**< ESP32 soft-AP stop */

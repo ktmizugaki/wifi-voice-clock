@@ -23,14 +23,15 @@
 #include <esp_event.h>
 #include <simple_wifi.h>
 #include <simple_wifi_event.h>
-#include <http_wifi_conf.h>
+#include <wifi_conf.h>
 
 #include "lan_manager.h"
 
 #define TAG "lanm"
 
-#define SYNCHRONIZE_BIT BIT0
-#define CONNECTED_BIT   BIT1
+#define SYNCHRONIZE_BIT     BIT0
+#define CONNECTED_BIT       BIT1
+#define DISCONNECTED_BIT    BIT2
 
 static bool s_connecting = false;
 static int16_t s_ref_count = 0;
@@ -42,7 +43,15 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         switch(event_id) {
         case SIMPLE_WIFI_EVENT_STA_CONNECTED:
             if (s_connecting) {
+                xEventGroupClearBits(s_event_group, DISCONNECTED_BIT);
                 xEventGroupSetBits(s_event_group, CONNECTED_BIT);
+            }
+            break;
+        case SIMPLE_WIFI_EVENT_STA_DISCONNECTED:
+        case SIMPLE_WIFI_EVENT_STA_FAIL:
+            if (s_connecting) {
+                xEventGroupClearBits(s_event_group, CONNECTED_BIT);
+                xEventGroupSetBits(s_event_group, DISCONNECTED_BIT);
             }
             break;
         }
@@ -53,7 +62,7 @@ static esp_err_t start_softap(void)
 {
     esp_err_t err;
 
-    if (!http_wifi_conf_configured()) {
+    if (!wifi_conf_configured()) {
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -77,7 +86,7 @@ static esp_err_t start_connect(void)
 {
     esp_err_t err;
 
-    if (!http_wifi_conf_configured()) {
+    if (!wifi_conf_configured()) {
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -96,7 +105,7 @@ static esp_err_t start_connect(void)
 
     ESP_ERROR_CHECK( esp_event_handler_register(
         SIMPLE_WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL) );
-    err = http_wifi_conf_connect();
+    err = wifi_conf_connect();
     if (err != ESP_OK) {
         ESP_LOGI(TAG, "start connecting failed");
         return err;
@@ -179,7 +188,7 @@ bool lan_manager_wait_conn(int timeout_ms)
         (timeout_ms+portTICK_PERIOD_MS-1)/portTICK_PERIOD_MS;
     EventBits_t uxBits;
 
-    uxBits = xEventGroupWaitBits(s_event_group, CONNECTED_BIT,
+    uxBits = xEventGroupWaitBits(s_event_group, CONNECTED_BIT|DISCONNECTED_BIT,
         pdFALSE, pdFALSE, waitTick);
     return (uxBits & CONNECTED_BIT) != 0;
 }

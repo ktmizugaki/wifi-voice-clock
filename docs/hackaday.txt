@@ -52,6 +52,20 @@ To save energy, device is usually in deep sleep state and display is off.
 1x Small Speaker
 
 # Logs
+## Implemented display
+<p>Show SSID and password while in soft-AP mode.</p>
+<figure><img src="https://cdn.hackaday.io/images/9159631633348369745.jpg" data-image="1633348370404"></figure>
+<p>Show clock.</p>
+<figure><img src="https://cdn.hackaday.io/images/3287721633348415202.jpg" data-image="1633348415873"></figure>
+<p>Next things to do:</p>
+<ul>
+<li>Sleep when idle</li>
+<li>Check and show battery level</li>
+<li>Alarm at configured time</li>
+<li>Automatically synchronize clock</li>
+<li>Update firmware from web interface</li>
+</ul>
+
 ## OLED worked! at least once
 <figure><img src="https://cdn.hackaday.io/images/4911421630321110360.jpg" data-image="1630321110933"><figcaption>This picture was taken at Aug. 7</figcaption></figure>
 <p>I assembled updated PCB and it worked at least once. And it stoped working after I soldered optional LEDs.<br>I suspect too much heat damaged the panel.</p>

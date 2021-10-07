@@ -1,0 +1,35 @@
+menu "Vcc "
+config VCC_ADC2_CHANNEL
+    int "ADC2 channel"
+    default 0
+    help
+        Channel to read vcc.
+        ADC2 channel 0 is GPIO4
+        ADC2 channel 1 is GPIO0
+        ADC2 channel 2 is GPIO2
+        ADC2 channel 3 is GPIO15
+        ADC2 channel 4 is GPIO13
+        ADC2 channel 5 is GPIO12
+        ADC2 channel 6 is GPIO14
+        ADC2 channel 7 is GPIO27
+        ADC2 channel 8 is GPIO25
+        ADC2 channel 9 is GPIO26
+
+config VCC_PIN
+    int "VCC pin"
+    default 5
+    help
+        Pin to output vcc.
+
+config VCC_DEFAULT_VREF
+    int "Default Vref"
+    default 1100
+    help
+        Vref value.
+
+config VCC_CHARGE_STAT_PIN
+    int "Charge stat pin"
+    default -1
+    help
+        Pin to read stat.
+endmenu

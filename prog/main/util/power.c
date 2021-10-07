@@ -22,6 +22,7 @@
 #include <esp_log.h>
 
 #include <alarm.h>
+#include <vcc.h>
 #include "app_display.h"
 #include "app_switches.h"
 #include "power.h"
@@ -51,6 +52,29 @@ static int64_t calc_wakup_us(void)
     }
     ESP_LOGD(TAG, "wakeup_us: %d.%06d", (int)(wakeup_us/1000000LLU), (int)(wakeup_us%1000000LLU));
     return wakeup_us;
+}
+
+esp_err_t power_init(void)
+{
+    int vcc;
+    vcc_charge_state_t state;
+    esp_err_t err;
+
+    err = vcc_init();
+    if (err != ESP_OK) {
+        return err;
+    }
+    err = vcc_read(&vcc, true);
+    if (err != ESP_OK && err != ESP_ERR_TIMEOUT) {
+        return err;
+    }
+    err = vcc_get_charge_state(&state);
+    if (err != ESP_OK) {
+        return err;
+    }
+    ESP_LOGI(TAG, "vcc: %d.%03d, %d, charge: %d",
+        vcc/1000, vcc%1000, vcc_get_level(false), state);
+    return ESP_OK;
 }
 
 void power_suspend(void)

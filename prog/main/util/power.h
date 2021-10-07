@@ -15,10 +15,14 @@
 
 #pragma once
 
+#include <esp_err.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/** initialize power related components. */
+extern esp_err_t power_init(void);
 /** deep sleep with timer and switch wakeup. */
 extern void power_suspend(void) __attribute__((noreturn));
 /** deep sleep with switch wakeup, without timer. */

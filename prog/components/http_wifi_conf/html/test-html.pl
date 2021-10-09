@@ -8,14 +8,16 @@ $ENV{PATH} = '/bin:/usr/bin';
 
 my $wifi_conf_base = File::Basename::dirname(__FILE__);
 
-chomp(my $cmn_path = `find "$wifi_conf_base/../.." -type d -name http_html_cmn | head -1`);
-if ($cmn_path =~ m#^([-\@\w./]+$)#) {
-    $cmn_path = $1."/html";
-} else {
-    die "http_html_cmn is not found";
+our $html_cmn;
+unless (defined($html_cmn)) {
+    chomp(my $cmn_path = `find "$wifi_conf_base/../.." -type d -name http_html_cmn | head -1`);
+    if ($cmn_path =~ m#^([-\@\w./]+$)#) {
+        $cmn_path = $1."/html";
+    } else {
+        die "http_html_cmn is not found";
+    }
+    require "$cmn_path/test-html.pl";
 }
-
-require "$cmn_path/test-html.pl";
 
 my $scan_req_count = 0;
 my $max_ap = 3;

@@ -9,6 +9,7 @@ $ENV{PATH} = '/bin:/usr/bin';
 
 my $cmn_path = File::Basename::dirname(__FILE__);
 
+our $html_cmn;
 our @HANDLERS = ();
 
 sub cmn_test_handler {
@@ -87,6 +88,10 @@ sub run_httpd {
     while ( my ( $c, $peer_addr ) = $d->accept ) {
         if ( my $req = $c->get_request ) {
             my $query = $req->uri->query || "";
+            $SIG{PIPE} = sub {
+                print "Connection closed while processing ", $req->method, " ", $req->uri->path, "\n";
+                $c->close;
+            };
             my $res;
             for my $handler (@HANDLERS) {
                 if (($res = $handler->($c, $req))) {
@@ -98,11 +103,15 @@ sub run_httpd {
             }
             print $req->method, " ", $req->uri->path, " => ", (ref $res ? $res->code : $res), "\n";
         }
+        $SIG{PIPE} = 'IGNORE';
         $c->close;
         undef($c);
+        $SIG{PIPE} = undef;
     }
     $d->close;
 }
+
+$html_cmn = 1;
 
 if ($0 eq __FILE__) {
     add_handlers(\&cmn_test_handler, \&cmn_handler);

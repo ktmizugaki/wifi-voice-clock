@@ -8,6 +8,7 @@ idf_component_register(SRCS "app_main.c"
                 gen/nvskey.dat
                 gen/font_shinonome14.fnt
                 gen/font_shinonome12.fnt
+                html/index.html
         REQUIRES ssd1306 gfx vcc switches clock lan_manager
                 http_alarm_conf http_wifi_conf simple_wifi esp_http_server nvs_flash)
 

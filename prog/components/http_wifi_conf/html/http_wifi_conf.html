@@ -19,17 +19,6 @@
     <script src="/cmn.js"></script>
     <script>
       "use strict";
-      function myfetch(path, params) {
-        if (params && params.method !== 'GET') {
-          params.headers = Object.assign({'Content-Type':'application/x-www-form-urlencoded'}, params.headers);
-        }
-        return cmn.req(location.href+'/'+path, params).then(function(res) {
-          return res.json();
-        }).catch(function(err) {
-          return {status:-1,message:err.message};
-        });
-      }
-
       function draw_conn(json) {
         var s2 = json.status === 2;
         cmn.show('disconnected', !s2);
@@ -43,7 +32,7 @@
       }
 
       function get_conn() {
-        myfetch('conn').then(draw_conn);
+        cmn.api('conn').then(draw_conn);
       }
 
       function conn_check(json) {
@@ -53,7 +42,7 @@
           alert(json.message);
         } else if (json.status == 1) {
           setTimeout(function() {
-            myfetch('conn').then(conn_check);
+            cmn.api('conn').then(conn_check);
           }, 1200);
         } else {
           cmn.modal('connecting', false);
@@ -63,11 +52,11 @@
 
       function connect(ssid) {
         cmn.modal('connecting', true);
-        myfetch('conn', {method:'POST', body:cmn.qstr({ssid:ssid})}).then(conn_check);
+        cmn.api('conn', {method:'POST', body:cmn.qstr({ssid:ssid})}).then(conn_check);
       }
 
       function disconnect() {
-        myfetch('conn', {method:'DELETE', body:''}).then(function(json) {
+        cmn.api('conn', {method:'DELETE', body:''}).then(function(json) {
           alert(json.message);
           draw_conn({status:0});
         });
@@ -96,7 +85,7 @@
       }
 
       function get_aps() {
-        myfetch("aps").then(draw_aps);
+        cmn.api("aps").then(draw_aps);
       }
 
       function add_ap(form) {
@@ -104,7 +93,7 @@
         var names = 'ssid password ntp'+(use_static_ip?' ip gateway netmask':'');
         var params = cmn.build(form, names.split(' '));
         params['use_static_ip'] = use_static_ip;
-        myfetch("aps", {method: 'POST',body:cmn.qstr(params)}).then(function(json){
+        cmn.api("aps", {method: 'POST',body:cmn.qstr(params)}).then(function(json){
           alert(json.message);
           if (json.status === 1) {
             cmn.modal('add-ap', false);
@@ -115,7 +104,7 @@
 
       function delete_ap(ssid) {
         if (confirm(ssid+'を削除しますか?')) {
-          myfetch("aps", {method: 'DELETE',body:cmn.qstr({ssid:ssid})}).then(function(json){
+          cmn.api("aps", {method: 'DELETE',body:cmn.qstr({ssid:ssid})}).then(function(json){
             alert(json.message);
             get_aps();
           });
@@ -183,12 +172,12 @@
       }
 
       function get_scan() {
-        myfetch('scan').then(draw_scan);
+        cmn.api('scan').then(draw_scan);
       }
 
       function req_scan() {
         scanning = true;
-        myfetch('scan', {method: 'POST'}).then(draw_scan);
+        cmn.api('scan', {method: 'POST'}).then(draw_scan);
       }
 
       function doload() {

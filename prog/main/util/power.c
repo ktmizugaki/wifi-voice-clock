@@ -22,6 +22,7 @@
 #include <esp_log.h>
 
 #include <alarm.h>
+#include <clock_conf.h>
 #include <vcc.h>
 #include "app_display.h"
 #include "app_switches.h"
@@ -29,10 +30,10 @@
 
 #define TAG "power"
 
-
 static int64_t calc_wakup_us(void)
 {
     static int64_t (*const functions[])(struct tm *tm, suseconds_t *usec) = {
+        clock_conf_wakeup_us,
         alarm_wakeup_us,
         NULL
     };

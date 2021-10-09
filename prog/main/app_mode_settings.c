@@ -25,6 +25,7 @@
 #include <http_html_cmn.h>
 #include <http_wifi_conf.h>
 #include <http_alarm_conf.h>
+#include <http_clock_conf.h>
 #include <lan_manager.h>
 
 #include "app_event.h"
@@ -87,6 +88,7 @@ static void start_settings_httpd(httpd_handle_t *httpd)
     ESP_ERROR_CHECK( http_index_register(*httpd) );
     ESP_ERROR_CHECK( http_wifi_conf_register(*httpd) );
     ESP_ERROR_CHECK( http_alarm_conf_register(*httpd) );
+    ESP_ERROR_CHECK( http_clock_conf_register(*httpd) );
 }
 
 app_mode_t app_mode_settings(void)

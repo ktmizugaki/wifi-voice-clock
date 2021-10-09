@@ -1,7 +1,7 @@
 "use strict";
 var cmn = {
   EVENT_NAMES: {
-    click:true,change:true,keydown:true,keypress:true,keyup:true,submit:true
+    click:true,change:true,keydown:true,keypress:true,keyup:true,submit:true,focus:true
   },
   LAST_REQ: Promise.resolve(null),
   req: function() {
@@ -131,3 +131,11 @@ cmn.tmpl = function(tmpl, parent) {
   }
   return el;
 };
+cmn.tmpls = function(tmpls, parent) {
+  if (parent) parent.innerHTML = '';
+  var els = [];
+  for (var i = 0; i < tmpls.length; i++) {
+    els.push(this.tmpl(tmpls[i], parent));
+  }
+  return els;
+}

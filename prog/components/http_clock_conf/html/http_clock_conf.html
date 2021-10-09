@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <title>時計設定</title>
+    <link rel="stylesheet" href="/cmn.css">
+    <script src="/cmn.js"></script>
+    <script>
+      "use strict";
+      var WEEK_STRS = '日 月 火 水 木 金 土'.split(' ');
+
+      function pad(n){ return n<10?'0'+n:''+n; }
+      function make_time_str(seconds) {
+        var h=0|(seconds/3600),m=0|((seconds/60)%60),s=0|(seconds%60);
+        return ""+pad(h)+":"+pad(m);
+      }
+      function make_datetime_str(time) {
+        var offset = (new Date()).getTimezoneOffset() * 60000;
+        return (new Date(time*1000 - offset)).toISOString()
+          .substring(0, 19).replace('T', ' ');
+      }
+      function parse_time(time) {
+        var m = time.match(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/);
+        if (m) {
+          return parseInt(m[1], 10)*3600+parseInt(m[2], 10)*60;
+        }
+      }
+      function parse_datetime(datetime) {
+        var m = datetime.match(/^(2[0-9]{3})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01]) ([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/);
+        if (m) {
+          m = m.map(function(v) { return parseInt(v, 10); });
+          return new Date(m[1], m[2]-1, m[3], m[4], m[5], m[6]);
+        }
+      }
+      function now() {
+        return (new Date()).getTime()/1000;
+      }
+
+      function draw_conf(json) {
+        cmn.tmpls([
+          ['h2',{class:'row'},'時計設定'],
+          ['div',{class:"row"},
+            "TZ: ", ['input',{type:'text',name:'TZ',value:json.TZ,size:6}]],
+          ['h2',{class:'row'},'時刻同期設定'],
+          ['div',{class:"row"}].concat(
+            "曜日: ",
+            WEEK_STRS.map(function(str, i) {
+              var attrs = {type:'checkbox',name:'week'+i,value:i};
+              if (json.sync_weeks&(1<<i)) attrs.checked = '';
+              return ['label',{},['input',attrs],str,' '];
+            })
+          ),
+          ['div',{class:"row"},
+            "時刻: ", ['input',
+              {type:'text',name:'time',value:make_time_str(json.sync_time)}
+            ]],
+          ['div',{class:"row"},
+            ['input',{type:'submit',value:'保存'}]],
+        ], cmn.el('clock-conf'));
+        return json;
+      }
+
+      function save_conf(ev) {
+        ev.preventDefault();
+        console.log(this);
+        var form = cmn.el('clock-conf');
+        var seconds = parse_time(cmn.val(form, 'time'));
+        if (seconds == null) {
+          alert('時刻の形式が正しくありません');
+          return;
+        }
+        var weeks = 0;
+        WEEK_STRS.forEach(function(str, i) {
+          if (cmn.chk(form, 'week'+i).length>0) {
+            weeks |= (1<<i);
+          }
+        });
+        var params = {
+          TZ: cmn.val(form, 'TZ'),
+          sync_weeks: weeks,
+          sync_time: seconds,
+        };
+        cmn.api("conf", {method: 'POST',body:cmn.qstr(params)}).then(function(json){
+          alert(json.message);
+          if (json.status === 1) {
+            get_conf();
+          }
+        });
+      }
+
+      function get_conf() {
+        cmn.api('conf').then(draw_conf);
+      }
+
+      let timer = 0, diff;
+      function draw_time() {
+        var elem = cmn.el('time');
+        var str = make_datetime_str(now() + diff);
+        var change = function(){clearTimeout(timer);timer=0;};
+        elem.innerHTML = '';
+        cmn.tmpl(['h2',{class:'row'},'時刻'], elem);
+        cmn.tmpl(['div',{class:'row'},
+          ['input',{type:'text',name:'time',value:str,size:18,focus:change}]], elem);
+        if (timer) {
+          clearTimeout(timer);
+        }
+        timer = setTimeout(draw_time, 1000);
+      }
+
+      function set_time(ev) {
+        ev.preventDefault();
+        var form = cmn.el('time');
+        var date = parse_datetime(cmn.val(form, 'time'));
+        var params = {
+          time: date.getTime()/1000,
+        };
+        cmn.api("time", {method: 'POST',body:cmn.qstr(params)}).then(function(json){
+          alert(json.message);
+          get_time();
+        });
+      }
+
+      function get_time() {
+        cmn.api('time').then(function(json) {
+          diff = json.time - now();
+          draw_time();
+        });
+      }
+
+      function doload() {
+        get_conf();
+        get_time();
+
+        cmn.on('clock-conf', 'submit', save_conf);
+        cmn.on('time', 'submit', set_time);
+      }
+      cmn.ready(doload);
+    </script>
+  </head>
+  <body>
+    <form id="clock-conf" method="POST"></form>
+    <form id="time" method="POST"></form >
+  </body>
+</html>

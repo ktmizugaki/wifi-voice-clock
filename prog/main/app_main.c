@@ -24,6 +24,7 @@
 #include <wifi_conf.h>
 #include <lan_manager.h>
 #include <clock.h>
+#include <clock_conf.h>
 
 #include "app_event.h"
 #include "app_clock.h"
@@ -69,13 +70,11 @@ void app_main(void)
     ESP_ERROR_CHECK( esp_event_loop_create_default() );
     ESP_ERROR_CHECK( app_event_init() );
     ESP_ERROR_CHECK( app_switches_init() );
+    ESP_ERROR_CHECK( app_init_nvs() );
     ESP_ERROR_CHECK( app_clock_init() );
     ESP_ERROR_CHECK( simple_wifi_init() );
     ESP_ERROR_CHECK( lan_manager_init() );
-    ESP_ERROR_CHECK( app_init_nvs() );
-
-    setenv("TZ", "JST-9", 1);
-    tzset();
+    ESP_ERROR_CHECK( clock_conf_init() );
 
     if (!wifi_conf_configured()) {
         s_mode = APP_MODE_INITIAL;

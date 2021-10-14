@@ -31,6 +31,7 @@
 #include "app_event.h"
 #include "app_clock.h"
 #include "app_switches.h"
+#include "app_wifi.h"
 #include "app_mode.h"
 
 #include "app_display.h"
@@ -96,6 +97,8 @@ app_mode_t app_mode_settings(void)
     httpd_handle_t httpd = NULL;
     app_mode_t next_mode = APP_MODE_CLOCK;
     ESP_LOGD(TAG, "handle_settings");
+    ESP_ERROR_CHECK( app_display_ensure_init() );
+    ESP_ERROR_CHECK( app_wifi_ensure_init() );
 
     app_display_ensure_reset();
     app_display_clear();
@@ -129,7 +132,7 @@ app_mode_t app_mode_settings(void)
                 break;
             case APP_EVENT_CLOCK:
                 break;
-            case APP_EVENT_SYNC:
+            default:
                 break;
             }
         }

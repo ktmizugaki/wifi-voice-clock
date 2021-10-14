@@ -48,7 +48,7 @@ static bool s_on = false;
 gfx_font_t font_shinonome14;
 gfx_font_t font_shinonome12;
 
-esp_err_t app_display_init(void)
+esp_err_t app_display_ensure_init(void)
 {
     esp_err_t err;
 

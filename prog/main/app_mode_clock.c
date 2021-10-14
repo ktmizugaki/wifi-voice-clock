@@ -25,6 +25,7 @@
 #include "app_event.h"
 #include "app_clock.h"
 #include "app_switches.h"
+#include "misc.h"
 #include "app_mode.h"
 
 #include "app_display.h"
@@ -71,6 +72,8 @@ app_mode_t app_mode_clock(void)
 {
     struct clock_mode_state state = { 0, 15, 8, };
     ESP_LOGD(TAG, "handle_clock");
+    ESP_ERROR_CHECK( app_display_ensure_init() );
+
     app_display_ensure_reset();
     app_display_clear();
     update_clock(&state);
@@ -78,6 +81,7 @@ app_mode_t app_mode_clock(void)
     while (true) {
         app_event_t event;
         if (app_event_get(&event)) {
+            misc_handle_event(&event);
             switch (event.id) {
             case APP_EVENT_ACTION:
                 state.idle = 0;

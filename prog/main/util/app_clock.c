@@ -27,6 +27,7 @@
 
 #include "app_clock.h"
 #include "app_event.h"
+#include "app_wifi.h"
 
 #define TAG "clock"
 
@@ -108,11 +109,16 @@ esp_err_t app_clock_init(void)
 
 esp_err_t app_clock_start_sync(void)
 {
+    esp_err_t err;
     if (s_syncing) {
         ESP_LOGD(TAG, "already syncing");
         return ESP_OK;
     }
 
+    err = app_wifi_ensure_init();
+    if (err != ESP_OK) {
+        return err;
+    }
     if (!lan_manager_request_conn()) {
         s_sync_state = SYNC_STATE_NONE;
         ESP_LOGI(TAG, "start connecting failed");

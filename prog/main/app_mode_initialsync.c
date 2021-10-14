@@ -24,6 +24,7 @@
 #include "app_event.h"
 #include "app_clock.h"
 #include "app_switches.h"
+#include "app_wifi.h"
 #include "app_mode.h"
 
 #include "app_display.h"
@@ -51,6 +52,9 @@ app_mode_t app_mode_initialsync(void)
 {
     esp_err_t err;
     ESP_LOGD(TAG, "handle_initialsync");
+    ESP_ERROR_CHECK( app_display_ensure_init() );
+    ESP_ERROR_CHECK( app_wifi_ensure_init() );
+
     app_display_ensure_reset();
     app_display_clear();
     update_clock();
@@ -73,6 +77,9 @@ app_mode_t app_mode_initialsync(void)
                 if (app_clock_is_done()) {
                     goto end;
                 }
+                break;
+            default:
+                break;
             }
         }
     }

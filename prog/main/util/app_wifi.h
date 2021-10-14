@@ -16,28 +16,12 @@
 #pragma once
 
 #include <esp_err.h>
-#include <gfx.h>
-#include <gfx_tinyfont.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define LCD_WIDTH   128
-#define LCD_HEIGHT  64
-#define LCD         app_display_get()
-
-extern esp_err_t app_display_ensure_init(void);
-extern abstract_lcd_t* app_display_get(void);
-extern void app_display_ensure_reset(void);
-extern void app_display_reset(void);
-extern void app_display_on(void);
-extern void app_display_off(void);
-extern void app_display_clear(void);
-extern void app_display_update(void);
-
-extern gfx_font_t font_shinonome14;
-extern gfx_font_t font_shinonome12;
+extern esp_err_t app_wifi_ensure_init(void);
 
 #ifdef __cplusplus
 }

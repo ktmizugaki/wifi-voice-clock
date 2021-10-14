@@ -25,6 +25,7 @@ extern "C" {
 typedef enum {
     APP_EVENT_ACTION,
     APP_EVENT_CLOCK,
+    APP_EVENT_WIFI,
     APP_EVENT_SYNC,
 } app_event_id_t;
 

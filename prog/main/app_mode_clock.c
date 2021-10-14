@@ -34,7 +34,8 @@
 #define TAG "main_clock"
 
 struct clock_mode_state {
-    bool on;
+    int8_t idle;
+    int8_t on;
     int8_t date_on;
 };
 
@@ -68,7 +69,7 @@ static void update_clock(struct clock_mode_state *state)
 
 app_mode_t app_mode_clock(void)
 {
-    struct clock_mode_state state = { true, 8, };
+    struct clock_mode_state state = { 0, 15, 8, };
     ESP_LOGD(TAG, "handle_clock");
     app_display_ensure_reset();
     app_display_clear();
@@ -79,36 +80,42 @@ app_mode_t app_mode_clock(void)
         if (app_event_get(&event)) {
             switch (event.id) {
             case APP_EVENT_ACTION:
+                state.idle = 0;
                 switch (event.arg0) {
-                case APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE:
-                    if (state.on) {
-                        ESP_LOGD(TAG, "turn off clock");
-                        state.on = false;
-                        app_display_off();
-                    }
-                    break;
-                case APP_ACTION_RIGHT|APP_ACTION_FLAG_RELEASE:
-                    if (!state.on) {
-                        ESP_LOGD(TAG, "turn on clock");
-                        state.on = true;
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
+                    return APP_MODE_SUSPEND;
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
+                    return APP_MODE_SETTINGS;
+                default:
+                    if (state.on <= 0) {
+                        state.on = 20;
                         state.date_on = 8;
                         app_display_on();
                         update_clock(&state);
+                    } else {
+                        state.on = 20;
                     }
                     break;
-                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
-                    return APP_MODE_SETTINGS;
                 }
                 break;
             case APP_EVENT_CLOCK:
-                if (state.on) {
-                    if (state.date_on >= 0) {
-                        state.date_on--;
+                state.idle++;
+                if (state.idle >= 20) {
+                    return APP_MODE_SUSPEND;
+                }
+                if (state.on > 0) {
+                    state.on--;
+                    if (state.on == 0) {
+                        app_display_off();
+                    } else {
+                        if (state.date_on >= 0) {
+                            state.date_on--;
+                        }
+                        update_clock(&state);
                     }
-                    update_clock(&state);
                 }
                 break;
-            case APP_EVENT_SYNC:
+            default:
                 break;
             }
         }

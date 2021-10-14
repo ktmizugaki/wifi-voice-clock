@@ -107,6 +107,8 @@ app_mode_t app_mode_initial(void)
                 switch (event.arg0) {
                 case APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE:
                     goto end;
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
+                    goto suspend;
                 }
                 break;
             default:
@@ -117,5 +119,11 @@ app_mode_t app_mode_initial(void)
 
 end:
     httpd_stop(httpd);
+    /* WiFi will be used by next mode, so skip stopping */
     return wifi_conf_configured()? APP_MODE_INITIALSYNC: APP_MODE_INITIAL;
+
+suspend:
+    httpd_stop(httpd);
+    simple_wifi_stop();
+    return APP_MODE_SUSPEND;
 }

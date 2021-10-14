@@ -85,6 +85,7 @@ void app_main(void)
     }
     while (true) {
         switch (s_mode) {
+        case APP_MODE_SUSPEND: s_mode = app_mode_suspend(); break;
         case APP_MODE_INITIAL: s_mode = app_mode_initial(); break;
         case APP_MODE_INITIALSYNC: s_mode = app_mode_initialsync(); break;
         case APP_MODE_CLOCK: s_mode = app_mode_clock(); break;

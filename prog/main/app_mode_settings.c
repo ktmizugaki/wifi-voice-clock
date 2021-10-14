@@ -94,6 +94,7 @@ static void start_settings_httpd(httpd_handle_t *httpd)
 app_mode_t app_mode_settings(void)
 {
     httpd_handle_t httpd = NULL;
+    app_mode_t next_mode = APP_MODE_CLOCK;
     ESP_LOGD(TAG, "handle_settings");
 
     app_display_ensure_reset();
@@ -121,6 +122,9 @@ app_mode_t app_mode_settings(void)
                 switch (event.arg0) {
                 case APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE:
                     goto end;
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
+                    next_mode = APP_MODE_SUSPEND;
+                    goto end;
                 }
                 break;
             case APP_EVENT_CLOCK:
@@ -134,5 +138,5 @@ app_mode_t app_mode_settings(void)
 end:
     httpd_stop(httpd);
     lan_manager_release_conn();
-    return APP_MODE_CLOCK;
+    return next_mode;
 }

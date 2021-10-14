@@ -13,28 +13,20 @@
  * limitations under the License.
  */
 
-#pragma once
+#include <stdbool.h>
+#include <esp_err.h>
+#include <esp_log.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "app_display.h"
+#include "power.h"
+#include "app_mode.h"
 
-typedef enum {
-    APP_MODE_SUSPEND,
-    APP_MODE_INITIAL,
-    APP_MODE_INITIALSYNC,
-    APP_MODE_CLOCK,
-    APP_MODE_SETTINGS,
-} app_mode_t;
+#define TAG "suspend"
 
-extern app_mode_t app_mode_get_current(void);
+app_mode_t app_mode_suspend(void)
+{
+    ESP_LOGD(TAG, "handle_suspend");
+    app_display_off();
 
-extern app_mode_t app_mode_suspend(void);
-extern app_mode_t app_mode_initial(void);
-extern app_mode_t app_mode_initialsync(void);
-extern app_mode_t app_mode_clock(void);
-extern app_mode_t app_mode_settings(void);
-
-#ifdef __cplusplus
+    power_suspend();
 }
-#endif

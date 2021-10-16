@@ -23,6 +23,11 @@
 extern "C" {
 #endif
 
+#if CONFIG_USE_SYSLOG
+extern void misc_ensure_init_udplog(void);
+extern void misc_udplog_vcc(void);
+#endif
+
 extern bool misc_process_time_task(void);
 extern void misc_handle_event(const app_event_t *event);
 

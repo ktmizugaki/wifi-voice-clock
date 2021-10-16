@@ -4,4 +4,12 @@ config NVS_ENCRYPTION
     bool "Enable NVS encryption"
     default y
 
+config USE_SYSLOG
+    bool "Use syslog over udp for some logging"
+    default n
+
+config SYSLOG_IP
+    depends on USE_SYSLOG
+    string "IP address of syslog server"
+
 endmenu

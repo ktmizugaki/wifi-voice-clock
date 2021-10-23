@@ -39,15 +39,17 @@ struct alarm {
     int alarm_id;
 };
 
-esp_err_t alarm_init(void);
-esp_err_t alarm_save(int index);
+extern esp_err_t alarm_init(void);
+extern esp_err_t alarm_save(int index);
+extern void alarm_set_num_alarm_sound(int num_alarm_sound);
+extern int alarm_get_num_alarm_sound(void);
 
-esp_err_t alarm_get_alarm(int index, const struct alarm **ppalarm);
-esp_err_t alarm_get_alarms(const struct alarm **palarms, int *num_alarm);
-esp_err_t alarm_set_alarm(int index, const struct alarm *alarm);
+extern esp_err_t alarm_get_alarm(int index, const struct alarm **ppalarm);
+extern esp_err_t alarm_get_alarms(const struct alarm **palarms, int *num_alarm);
+extern esp_err_t alarm_set_alarm(int index, const struct alarm *alarm);
 
-int64_t alarm_wakeup_us(struct tm *tm, suseconds_t *usec);
-bool alarm_get_current_alarm(struct tm *tm, int range, const struct alarm **ppalarm);
+extern int64_t alarm_wakeup_us(struct tm *tm, suseconds_t *usec);
+extern bool alarm_get_current_alarm(struct tm *tm, int range, const struct alarm **ppalarm);
 
 #ifdef __cplusplus
 }

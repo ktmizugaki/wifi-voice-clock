@@ -19,6 +19,8 @@
 #include <esp_err.h>
 #include <esp_log.h>
 
+#include <riffwave.h>
+
 #include "storage.h"
 
 #define TAG "storage"
@@ -56,4 +58,100 @@ esp_err_t storage_init(const char *base_path, const char *partition)
         }
     }
     return ret;
+}
+
+esp_err_t storage_wav_open(const char *path, struct wav_play_info *info)
+{
+    char header[80];
+    struct stat st;
+    FILE *fp;
+    int rsize;
+    esp_err_t err;
+
+    if (path == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (info == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    info->wav_data = NULL;
+
+    if (stat(path, &st) != 0) {
+        ESP_LOGE(TAG, "No file: %s", path);
+        return ESP_ERR_NOT_FOUND;
+    }
+    fp = fopen(path, "r");
+    if (fp == NULL) {
+        ESP_LOGE(TAG, "Open error: %s", path);
+        return ESP_FAIL;
+    }
+
+    rsize = fread(header, 1, sizeof(header), fp);
+    if (rsize < MIN_RIFFWAVE_SIZE) {
+        ESP_LOGE(TAG, "Read header error: %s: %d", path, rsize);
+        fclose(fp);
+        return ESP_FAIL;
+    }
+    err = audio_wav_parse(header, rsize, st.st_size, &info->wav_info);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Parse header error: %s: %d", path, err);
+        fclose(fp);
+        return ESP_FAIL;
+    }
+
+    info->offset = 0;
+    info->playsize = info->wav_info.data_length;
+    info->data_func = storage_wav_copy_data_func;
+    info->wav_data = fp;
+    return ESP_OK;
+}
+
+esp_err_t storage_wav_read(struct wav_play_info *info, uint32_t offset, void *data, uint32_t *length)
+{
+    FILE *fp;
+    uint32_t n, m;
+    if (info == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (info->wav_data == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (data == NULL || length == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (offset >= info->wav_info.data_length) {
+        ESP_LOGE(TAG, "Offset exceeds data length: %u/%u", offset, info->wav_info.data_length);
+        return ESP_ERR_INVALID_ARG;
+    }
+    fp = (FILE*)info->wav_data;
+    n = *length;
+    m = info->wav_info.data_length - offset;
+    if (n > m) {
+        n = m;
+    }
+    if (fseek(fp, info->wav_info.data_offset+offset, SEEK_SET) < 0) {
+        return ESP_FAIL;
+    }
+    *length = fread(data, 1, n, fp);
+    return ESP_OK;
+}
+
+void storage_wav_close(struct wav_play_info *info)
+{
+    FILE *fp = (FILE*)info->wav_data;
+    if (fp != NULL) {
+        fclose(fp);
+        info->wav_data = NULL;
+    }
+}
+
+int storage_wav_copy_data_func(struct wav_play_info *info, int offset, void *data, int size)
+{
+    uint32_t length = size;
+    esp_err_t err;
+    err = storage_wav_read(info, offset, data, &length);
+    if (err != ESP_OK) {
+        return -1;
+    }
+    return length;
 }

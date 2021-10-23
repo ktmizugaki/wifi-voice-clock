@@ -26,6 +26,7 @@
 #define NVSKEY "alarm"
 
 static bool s_loaded_alarms = false;
+static int s_num_alarm_sound = 1;
 static struct alarm s_alarms[NUM_ALARM];
 
 struct alarm_packed {
@@ -197,6 +198,18 @@ esp_err_t alarm_save(int index)
         }
         return alarm_save_alarm(index, &s_alarms[index], NULL);
     }
+}
+
+void alarm_set_num_alarm_sound(int num_alarm_sound)
+{
+    if (num_alarm_sound > 0) {
+       s_num_alarm_sound = num_alarm_sound;
+    }
+}
+
+int alarm_get_num_alarm_sound(void)
+{
+    return s_num_alarm_sound;
 }
 
 esp_err_t alarm_get_alarm(int index, const struct alarm **ppalarm)

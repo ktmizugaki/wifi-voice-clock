@@ -18,6 +18,7 @@
 #include <esp_log.h>
 
 #include <clock.h>
+#include <audio.h>
 
 #include "app_event.h"
 #include "app_clock.h"
@@ -34,6 +35,9 @@ static bool is_all_task_done(void)
     if (!app_clock_is_done()) {
         return false;
     }
+    if (misc_is_playing_alarm()) {
+        return false;
+    }
     return true;
 }
 
@@ -46,13 +50,30 @@ app_mode_t app_mode_suspend(void)
     if (is_all_task_done()) {
         goto suspend;
     }
+    if (misc_is_playing_alarm()) {
+        to = 30;
+    }
     while (true) {
         app_event_t event;
         if (app_event_get(&event)) {
             misc_handle_event(&event);
             switch (event.id) {
             case APP_EVENT_ACTION:
-                return APP_MODE_CLOCK;
+                switch (event.arg0) {
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_PRESS:
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG|APP_ACTION_FLAG_RELEASE:
+                    break;
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
+                    if (misc_is_playing_alarm()) {
+                        audio_stop();
+                    }
+                    break;
+                default:
+                    app_event_send_args(event.id, event.arg0, event.arg1);
+                    return APP_MODE_CLOCK;
+                }
+                break;
             case APP_EVENT_CLOCK:
                 if (misc_process_time_task()) {
                     if (to < 10) {

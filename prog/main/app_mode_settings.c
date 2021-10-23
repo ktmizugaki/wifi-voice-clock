@@ -27,6 +27,8 @@
 #include <http_alarm_conf.h>
 #include <http_clock_conf.h>
 #include <lan_manager.h>
+#include <audio.h>
+#include <alarm.h>
 
 #include "app_event.h"
 #include "app_clock.h"
@@ -100,6 +102,7 @@ app_mode_t app_mode_settings(void)
     ESP_LOGD(TAG, "handle_settings");
     ESP_ERROR_CHECK( app_display_ensure_init() );
     ESP_ERROR_CHECK( app_wifi_ensure_init() );
+    alarm_set_num_alarm_sound(3);
 
     misc_ensure_vcc_level(VCC_LEVEL_WARNING, true);
 
@@ -123,11 +126,17 @@ app_mode_t app_mode_settings(void)
     while (true) {
         app_event_t event;
         if (app_event_get(&event)) {
+            misc_handle_event(&event);
             switch (event.id) {
             case APP_EVENT_ACTION:
                 switch (event.arg0) {
                 case APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE:
                     goto end;
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
+                    if (misc_is_playing_alarm()) {
+                        audio_stop();
+                    }
+                    break;
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
                     next_mode = APP_MODE_SUSPEND;
                     goto end;

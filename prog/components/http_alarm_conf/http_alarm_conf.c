@@ -86,6 +86,7 @@ static esp_err_t http_get_alarms_handler(httpd_req_t *req)
 
     json_str_begin_object(json, NULL);
     json_str_add_integer(json, "status", 1);
+    json_str_add_integer(json, "num_alarm_sound", alarm_get_num_alarm_sound());
 
     json_str_begin_array(json, "alarms");
     for (i = 0; i < num_alarm; i++) {
@@ -161,7 +162,7 @@ static void post_alarms_params_handler(char *key, size_t key_len, char *value, s
     }
     if (HTTP_CMN_KEYCMP(key, key_len, "alarm_id")) {
         int alarm_id = atoi(value);
-        if (alarm_id >= 0 && alarm_id < 1) {
+        if (alarm_id >= 0 && alarm_id < alarm_get_num_alarm_sound()) {
             params->fields |= APF_ALARM_ID;
             params->alarm.alarm_id = alarm_id;
         } else {

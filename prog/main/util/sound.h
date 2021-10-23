@@ -15,27 +15,21 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <stdbool.h>
+#include <time.h>
 #include <esp_err.h>
-
-#include <riffwave.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef CONFIG_STORAGE_BASE_PATH
-#define CONFIG_STORAGE_BASE_PATH        "/spiffs"
-#endif
-#ifndef CONFIG_STORAGE_PARTITION_NAME
-#define CONFIG_STORAGE_PARTITION_NAME   "storage"
-#endif
-
-extern esp_err_t storage_init(const char *base_path, const char *partition);
-extern esp_err_t storage_wav_open(const char *path, struct wav_play_info *info);
-extern esp_err_t storage_wav_read(struct wav_play_info *info, uint32_t offset, void *data, uint32_t *length);
-extern void storage_wav_close(struct wav_play_info *info);
-extern int storage_wav_copy_data_func(struct wav_play_info *info, int offset, void *data, int size);
+extern esp_err_t sound_ensure_init(void);
+extern esp_err_t sound_play_repeat_notify(const char *name, int duration,
+    void (*notify_end_func)(void));
+extern esp_err_t sound_play_repeat(const char *name, int duration);
+extern esp_err_t sound_play(const char *name);
+extern bool sound_is_playing(void);
+extern void sound_stop(void);
 
 #ifdef __cplusplus
 }

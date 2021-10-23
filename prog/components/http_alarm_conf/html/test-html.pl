@@ -21,7 +21,7 @@ unless (defined($html_cmn)) {
 }
 
 my $num_alarm = 5;
-my $num_alarm_sound = 1;
+my $num_alarm_sound = 3;
 my @alarms = map { {'enabled'=>0, 'name'=>'', 'weeks'=>0x7f, 'alarm_id'=>0, 'seconds'=>0} } (1..$num_alarm);
 
 sub alarm_validate_params {
@@ -56,7 +56,7 @@ sub alarm_conf_handler {
     if ($req->method eq 'GET' && $req->uri->path eq '/alarm_conf') {
         return $c->send_file_response($alarm_conf_base.'/http_alarm_conf.html');
     } elsif ($req->method eq 'GET' && $req->uri->path eq '/alarm_conf/alarms') {
-        my $json = '{"status":1,"alarms":'.encode_json(\@alarms).'}';
+        my $json = '{"status":1,"num_alarm_sound":'.$num_alarm_sound.',"alarms":'.encode_json(\@alarms).'}';
         my $res = json_response($json);
         $c->send_response($res);
         return $res;

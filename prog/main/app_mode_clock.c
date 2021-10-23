@@ -21,6 +21,7 @@
 #include <esp_log.h>
 
 #include <clock.h>
+#include <audio.h>
 
 #include "app_event.h"
 #include "app_clock.h"
@@ -87,9 +88,17 @@ app_mode_t app_mode_clock(void)
                 state.idle = 0;
                 switch (event.arg0) {
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
+                    if (misc_is_playing_alarm()) {
+                        audio_stop();
+                    }
                     return APP_MODE_SUSPEND;
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
-                    return APP_MODE_SETTINGS;
+                    if (misc_is_playing_alarm()) {
+                        audio_stop();
+                    } else {
+                        return APP_MODE_SETTINGS;
+                    }
+                    break;
                 default:
                     if (state.on <= 0) {
                         state.on = 20;

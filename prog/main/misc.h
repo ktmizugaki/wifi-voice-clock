@@ -17,12 +17,15 @@
 
 #include <stdbool.h>
 #include <vcc.h>
+#include <alarm.h>
 
 #include "app_event.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define BEEP_FREQ   659
 
 #if CONFIG_USE_SYSLOG
 extern void misc_ensure_init_udplog(void);
@@ -33,6 +36,11 @@ extern void misc_ensure_vcc_level(vcc_level_t min_level, bool is_interactive);
 
 extern bool misc_process_time_task(void);
 extern void misc_handle_event(const app_event_t *event);
+
+extern bool misc_is_playing_alarm(void);
+extern void misc_play_alarm(const struct alarm *alarm);
+extern void misc_play_default_alarm(void);
+extern esp_err_t misc_beep(int duration);
 
 #ifdef __cplusplus
 }

@@ -3,14 +3,16 @@ idf_component_register(SRCS "app_main.c" "app_mode_suspend.c"
                 "app_display_clock.c" "app_display_softap.c"
                 "misc.c"
                 "util/app_wifi.c" "util/app_display.c" "util/app_clock.c" "util/app_switches.c" "util/app_event.c"
-                "util/power.c" "util/storage.c"
+                "util/sound.c" "util/power.c" "util/storage.c"
         PRIV_INCLUDE_DIRS "util"
         EMBED_FILES
+                data/alarm.wav
                 gen/nvskey.dat
                 gen/font_shinonome14.fnt
                 gen/font_shinonome12.fnt
                 html/index.html
-        REQUIRES ssd1306 gfx udplog vcc switches clock lan_manager
+        REQUIRES ssd1306 gfx udplog vcc audio switches
+                clock lan_manager
                 http_clock_conf http_alarm_conf http_wifi_conf simple_wifi
                 esp_http_server spiffs nvs_flash)
 

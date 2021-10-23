@@ -45,6 +45,12 @@
               ['td',{},['button',{click:open_edit_alarm.bind(null,alarm,i)},'編集']],
             ], tbody);
           }
+          if (typeof(json.num_alarm_sound) === 'number') {
+            var els = document.getElementsByName('alarm_id');
+            for (var i = 0; i < els.length; i++) {
+              els[i].max = json.num_alarm_sound-1;
+            }
+          }
         } else {
           /* TODO: show error message */
         }

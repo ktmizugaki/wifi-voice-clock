@@ -57,3 +57,17 @@
 # ESP-IDF
 
 This project use ESP-IDF v4.0.
+
+# Playing alarm
+
+Clock can play alarm using wav data in spiffs storage.
+
+1. create `spiffs` directory
+2. place alarm files in the `spiffs` directory.
+    - File name must be `alarm0.wav`, `alarm1.wav` or `alarm2.wav`.
+    - Format of .wav files must be RIFF WAVE and audio encoding is PCM.
+3. create spiffs and flash
+    ```sh
+    make spiffs && make spiffs-flash
+    ```
+4. configure alarm in settings and select sound id matching the number in the file.

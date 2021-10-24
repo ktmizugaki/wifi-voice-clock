@@ -45,16 +45,24 @@ void app_switches_enable_wake(void)
     esp_sleep_enable_ext1_wakeup(BIT64(SWITCH_1)|BIT64(SWITCH_2), ESP_EXT1_WAKEUP_ANY_HIGH);
 }
 
-int app_switches_check_wake(void)
+enum app_action app_switches_check_wake(void)
 {
     uint64_t wakeup_bit = esp_sleep_get_ext1_wakeup_status();
     if (wakeup_bit & BIT64(SWITCH_1)) {
         ESP_LOGI(TAG, "woken up by switch 1");
-        return APP_ACTION_RIGHT;
+        if (switches_get_state() & APP_ACTION_RIGHT) {
+            return APP_ACTION_RIGHT;
+        } else {
+            return APP_ACTION_RIGHT|APP_ACTION_FLAG_RELEASE;
+        }
     }
     if (wakeup_bit & BIT64(SWITCH_2)) {
         ESP_LOGI(TAG, "woken up by switch 2");
-        return APP_ACTION_LEFT;
+        if (switches_get_state() & APP_ACTION_LEFT) {
+            return APP_ACTION_LEFT;
+        } else {
+            return APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE;
+        }
     }
     return APP_ACTION_NONE;
 }

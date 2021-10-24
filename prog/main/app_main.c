@@ -66,6 +66,11 @@ static app_mode_t determin_mode(void)
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
 
     if (cause == ESP_SLEEP_WAKEUP_EXT1) {
+        enum app_action action = app_switches_check_wake();
+        if (action != APP_ACTION_NONE) {
+            ESP_LOGI(TAG, "wake up action: %04x", action);
+            app_event_send_args(APP_EVENT_ACTION, action, APP_ACTION_NONE);
+        }
         return APP_MODE_CLOCK;
     } else if (cause == ESP_SLEEP_WAKEUP_TIMER) {
         misc_process_time_task();

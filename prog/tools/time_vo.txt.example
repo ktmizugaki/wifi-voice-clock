@@ -1,0 +1,90 @@
+hour00: num000.wav time_ji.wav
+hour01: num001.wav time_ji.wav
+hour02: num002.wav time_ji.wav
+hour03: num003.wav time_ji.wav
+hour04: num004.wav time_ji.wav
+hour05: num005.wav time_ji.wav
+hour06: num006.wav time_ji.wav
+hour07: num007.wav time_ji.wav
+hour08: num008.wav time_ji.wav
+hour09: num009.wav time_ji.wav
+hour10: num010.wav time_ji.wav
+hour11: num010.wav num001.wav time_ji.wav
+hour12: num010.wav num002.wav time_ji.wav
+hour13: num010.wav num003.wav time_ji.wav
+hour14: num010.wav num004.wav time_ji.wav
+hour15: num010.wav num005.wav time_ji.wav
+hour16: num010.wav num006.wav time_ji.wav
+hour17: num010.wav num007.wav time_ji.wav
+hour18: num010.wav num008.wav time_ji.wav
+hour19: num010.wav num009.wav time_ji.wav
+hour20: num020.wav time_ji.wav
+hour21: num020.wav num001.wav time_ji.wav
+hour22: num020.wav num002.wav time_ji.wav
+hour23: num020.wav num003.wav time_ji.wav
+
+min00: num000.wav time_fun.wav
+min01: num001.wav time_fun.wav
+min02: num002.wav time_fun.wav
+min03: num003.wav time_fun.wav
+min04: num004.wav time_fun.wav
+min05: num005.wav time_fun.wav
+min06: num006.wav time_fun.wav
+min07: num007.wav time_fun.wav
+min08: num008.wav time_fun.wav
+min09: num009.wav time_fun.wav
+
+min10: num010.wav time_fun.wav
+min11: num010.wav num001.wav time_fun.wav
+min12: num010.wav num002.wav time_fun.wav
+min13: num010.wav num003.wav time_fun.wav
+min14: num010.wav num004.wav time_fun.wav
+min15: num010.wav num005.wav time_fun.wav
+min16: num010.wav num006.wav time_fun.wav
+min17: num010.wav num007.wav time_fun.wav
+min18: num010.wav num008.wav time_fun.wav
+min19: num010.wav num009.wav time_fun.wav
+
+min20: num002.wav num010.wav time_fun.wav
+min21: num002.wav num010.wav num001.wav time_fun.wav
+min22: num002.wav num010.wav num002.wav time_fun.wav
+min23: num002.wav num010.wav num003.wav time_fun.wav
+min24: num002.wav num010.wav num004.wav time_fun.wav
+min25: num002.wav num010.wav num005.wav time_fun.wav
+min26: num002.wav num010.wav num006.wav time_fun.wav
+min27: num002.wav num010.wav num007.wav time_fun.wav
+min28: num002.wav num010.wav num008.wav time_fun.wav
+min29: num002.wav num010.wav num009.wav time_fun.wav
+
+min30: num003.wav num010.wav time_fun.wav
+min31: num003.wav num010.wav num001.wav time_fun.wav
+min32: num003.wav num010.wav num002.wav time_fun.wav
+min33: num003.wav num010.wav num003.wav time_fun.wav
+min34: num003.wav num010.wav num004.wav time_fun.wav
+min35: num003.wav num010.wav num005.wav time_fun.wav
+min36: num003.wav num010.wav num006.wav time_fun.wav
+min37: num003.wav num010.wav num007.wav time_fun.wav
+min38: num003.wav num010.wav num008.wav time_fun.wav
+min39: num003.wav num010.wav num009.wav time_fun.wav
+
+min40: num004.wav num010.wav time_fun.wav
+min41: num004.wav num010.wav num001.wav time_fun.wav
+min42: num004.wav num010.wav num002.wav time_fun.wav
+min43: num004.wav num010.wav num003.wav time_fun.wav
+min44: num004.wav num010.wav num004.wav time_fun.wav
+min45: num004.wav num010.wav num005.wav time_fun.wav
+min46: num004.wav num010.wav num006.wav time_fun.wav
+min47: num004.wav num010.wav num007.wav time_fun.wav
+min48: num004.wav num010.wav num008.wav time_fun.wav
+min49: num004.wav num010.wav num009.wav time_fun.wav
+
+min50: num005.wav num010.wav time_fun.wav
+min51: num005.wav num010.wav num001.wav time_fun.wav
+min52: num005.wav num010.wav num002.wav time_fun.wav
+min53: num005.wav num010.wav num003.wav time_fun.wav
+min54: num005.wav num010.wav num004.wav time_fun.wav
+min55: num005.wav num010.wav num005.wav time_fun.wav
+min56: num005.wav num010.wav num006.wav time_fun.wav
+min57: num005.wav num010.wav num007.wav time_fun.wav
+min58: num005.wav num010.wav num008.wav time_fun.wav
+min59: num005.wav num010.wav num009.wav time_fun.wav

@@ -27,6 +27,7 @@
 #include "app_clock.h"
 #include "app_switches.h"
 #include "misc.h"
+#include "voice.h"
 #include "app_mode.h"
 
 #include "app_display.h"
@@ -87,6 +88,11 @@ app_mode_t app_mode_clock(void)
             case APP_EVENT_ACTION:
                 state.idle = 0;
                 switch (event.arg0) {
+                case APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE:
+                    misc_ensure_vcc_level(VCC_LEVEL_WARNING, true);
+                    audio_stop();
+                    voice_saynow();
+                    break;
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
                     if (misc_is_playing_alarm()) {
                         audio_stop();

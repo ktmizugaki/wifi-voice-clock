@@ -1,7 +1,7 @@
 idf_component_register(SRCS "app_main.c" "app_mode_suspend.c"
                 "app_mode_initial.c" "app_mode_initialsync.c" "app_mode_clock.c" "app_mode_settings.c"
                 "app_display_clock.c" "app_display_softap.c"
-                "misc.c"
+                "misc.c" "voice.c"
                 "util/app_wifi.c" "util/app_display.c" "util/app_clock.c" "util/app_switches.c" "util/app_event.c"
                 "util/sound.c" "util/power.c" "util/storage.c"
         PRIV_INCLUDE_DIRS "util"

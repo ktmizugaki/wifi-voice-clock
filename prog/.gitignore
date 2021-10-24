@@ -2,3 +2,4 @@ build/
 main/gen
 sdkconfig
 sdkconfig.old
+spiffs/

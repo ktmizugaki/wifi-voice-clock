@@ -1,0 +1,29 @@
+### add spiffs targets
+.PHONY: spiffs spiffs-flash spiffs-clean
+
+SPIFFS_DIR := spiffs
+SPIFFS_PARTITION := storage
+SPIFFS_BIN = $(BUILD_DIR_BASE)/$(SPIFFS_PARTITION).bin
+SPIFFS_DEPS = $(SPIFFS_DIR)/ $(shell find $(SPIFFS_DIR) -type f)
+
+spiffs: $(SPIFFS_BIN)
+
+$(SPIFFS_BIN): $(PARTITION_TABLE_BIN) $(SPIFFS_DEPS)
+	$(summary) GEN $@
+	$(eval SPIFFS_SIZE:=$(shell $(GET_PART_INFO) \
+		--partition-table-file $(PARTITION_TABLE_BIN) \
+		--partition-table-offset $(PARTITION_TABLE_OFFSET) \
+		get_partition_info --partition-name $(SPIFFS_PARTITION) --info size))
+	$(SPIFFSGEN_PY) $(SPIFFS_SIZE) $(SPIFFS_DIR) $(SPIFFS_BIN)
+
+spiffs-flash: spiffs
+	$(eval SPIFFS_OFFSET:=$(shell $(GET_PART_INFO) \
+		--partition-table-file $(PARTITION_TABLE_BIN) \
+		--partition-table-offset $(PARTITION_TABLE_OFFSET) \
+		get_partition_info --partition-name $(SPIFFS_PARTITION) --info offset))
+	@echo "Flashing spiffs to serial port $(ESPPORT), offset $(SPIFFS_OFFSET)..."
+	$(ESPTOOLPY_WRITE_FLASH) -z $(SPIFFS_OFFSET) $(SPIFFS_BIN)
+
+spiffs-clean:
+	$(summary) RM $(SPIFFS_BIN)
+	rm -f $(SPIFFS_BIN)

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <title>ファームウェア更新</title>
+    <link rel="stylesheet" href="/cmn.css">
+    <style>
+      .modal#progress {
+        top:calc(50% -  80px);
+        right:calc(50% - 80px);
+        bottom:calc(50% - 80px);
+        left:calc(50% - 80px);
+      }
+    </style>
+    <script src="/cmn.js"></script>
+    <script>
+      "use strict";
+      function draw_version(json) {
+        cmn.tmpls([
+          ['h2',{class:'row'},'バージョン'],
+          ['div',{class:"row"},
+            "APPバージョン: ", json.app_version],
+          ['div',{class:"row"},
+            "ビルド日時: ", json.datetime],
+          ['div',{class:"row"},
+            "SDKバージョン: ", json.idf_version],
+        ], cmn.el('version'));
+        return json;
+      }
+
+      function get_version() {
+        cmn.api('version').then(draw_version);
+      }
+
+      function draw_firmware() {
+        cmn.tmpls([
+          ['h2',{class:'row'},'ファームウェア更新'],
+          ['div',{class:"row"},
+            "ファームウェア: ",
+            ['input',{type:'file',name:'firmware',id:'firmware'}]],
+          ['div',{class:"row"},
+            ['input',{type:'submit',value:'更新'}]],
+        ], cmn.el('update'));
+      }
+
+      function post_update(ev) {
+        ev.preventDefault();
+        let firmware = cmn.el("firmware").files[0];
+        if (!firmware) {
+          alert('ファームウェアを選択してください');
+          return;
+        }
+        startprogress();
+        cmn.sendfile('update', firmware, null, onprogress)
+          .then(function(json) {
+            endprogress();
+            alert(json.message);
+          });
+      }
+
+      function draw_spiffs() {
+        cmn.tmpls([
+          ['h2',{class:'row'},'SPIFFS更新'],
+          ['div',{class:"row"},
+            "SPIFFS: ",
+            ['input',{type:'file',name:'spiffs',id:'spiffs-file'}]],
+          ['div',{class:"row"},
+            ['input',{type:'submit',value:'更新'}]],
+        ], cmn.el('spiffs'));
+      }
+
+      function post_spiffs(ev) {
+        ev.preventDefault();
+        let spiffs = cmn.el("spiffs-file").files[0];
+        if (!spiffs) {
+          alert('SPIFFSを選択してください');
+          return;
+        }
+        cmn.sendfile('spiffs', spiffs, null, onprogress)
+          .then(function(json) {
+            alert(json.message);
+          });
+      }
+
+      function startprogress() {
+        let el = cmn.el('progress-percentage');
+        el.innerText = '...';
+        cmn.modal('progress', true);
+      }
+      function endprogress() {
+        let el = cmn.el('progress-percentage');
+        el.innerText = '';
+        cmn.modal('progress', false);
+      }
+      function onprogress(ev, isUpload) {
+        if (isUpload) {
+          let ratio = ev.loaded / ev.total;
+          let el = cmn.el('progress-percentage');
+          el.innerText = Math.floor(ratio*100)+'%'+(ratio < 1? '...' : '');
+        }
+      }
+
+      function doload() {
+        get_version();
+        draw_firmware();
+        draw_spiffs();
+
+        cmn.on('update', 'submit', post_update);
+        cmn.on('spiffs', 'submit', post_spiffs);
+      }
+      cmn.ready(doload);
+    </script>
+  </head>
+  <body>
+    <div id="version"></div>
+    <form id="update" method="POST"></form>
+    <form id="spiffs" method="POST"></form>
+    <div id="progress" class="modal hidden">
+      <div class="modal-inner">
+        <div class="vcenter">
+          <div class="row center">
+            <span class="kurukuru kurukuru-large"></span><br>
+            <span id="progress-percentage"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

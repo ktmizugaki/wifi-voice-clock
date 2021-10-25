@@ -29,6 +29,7 @@ require $components_path."/http_html_cmn/html/test-html.pl";
 require $components_path."/http_wifi_conf/html/test-html.pl";
 require $components_path."/http_clock_conf/html/test-html.pl";
 require $components_path."/http_alarm_conf/html/test-html.pl";
+require $components_path."/http_firmware/html/test-html.pl";
 
 sub index_handler {
     my ($c, $req) = @_;
@@ -43,6 +44,7 @@ if ($0 eq __FILE__) {
     add_handlers(\&cmn_handler, \&wifi_conf_handler);
     add_handlers(\&cmn_handler, \&clock_conf_handler);
     add_handlers(\&cmn_handler, \&alarm_conf_handler);
+    add_handlers(\&cmn_handler, \&firmware_handler);
     run_httpd(start_httpd(""));
 }
 

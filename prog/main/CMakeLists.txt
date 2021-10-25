@@ -13,7 +13,7 @@ idf_component_register(SRCS "app_main.c" "app_mode_suspend.c"
                 html/index.html
         REQUIRES ssd1306 gfx udplog vcc audio switches
                 clock lan_manager
-                http_clock_conf http_alarm_conf http_wifi_conf simple_wifi
+                http_firmware http_clock_conf http_alarm_conf http_wifi_conf simple_wifi
                 esp_http_server spiffs nvs_flash)
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-format-truncation)

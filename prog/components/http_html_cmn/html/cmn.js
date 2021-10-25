@@ -21,6 +21,41 @@ var cmn = {
       return {status:-1,message:err.message};
     });
   },
+  sendfile: function(path, file, type, onprogress) {
+    if (!file) {
+       return Promise.resolve({status:-1,message:'Invalid arg'});
+    }
+    /* use XMLHttpRequest to get progress */
+    return this.LAST_REQ = this.LAST_REQ.catch(function(){}).then(function() {
+      return new Promise(function(resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch(e) {
+            resolve({status:-1,message:e.message});
+          }
+        };
+        xhr.onerror = function(e) {
+          console.log(e);
+          resolve({status:-1,message:'network error'});
+        };
+        xhr.ontimeout = function(e) {
+          resolve({status:-1,message:'request timed out'});
+        };
+        xhr.onabort = function(e) {
+          resolve({status:-1,message:'request aborted'});
+        };
+        if (onprogress) {
+          xhr.onprogress = function(ev){ onprogress(ev, false); };
+          xhr.upload.onprogress = function(ev){ onprogress(ev, true); };
+        }
+        xhr.open('POST', location.href+'/'+path);
+        xhr.setRequestHeader('Content-Type', type || 'application/octet-stream');
+        xhr.send(file);
+      });
+    });
+  },
   ik: function(o,k){return this.hasOwnProperty.call(o,k);},
   ready: function(fn) {
     window.addEventListener('DOMContentLoaded', fn);

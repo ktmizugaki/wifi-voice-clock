@@ -77,6 +77,79 @@
       });
     </script>
     <script>
+      describe('cmn.sendfile()', function() {
+        it('should return json for POST request of text/plain', function() {
+          return cmn.sendfile('test-post', "this is a plain text", 'text/plain').then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, 1);
+            chai.assert.equal(json.path, '/test/test-post');
+            chai.assert.equal(json.contentType, 'text/plain');
+            chai.assert.equal(json.query, '');
+            chai.assert.equal(json.body, 'this is a plain text');
+          });
+        });
+        it('should return json for POST request of file application/octet-stream', function() {
+          var file = new File(['\xDD\xCC\xBB\xAA'], "test.bin", {type: 'application/octet-stream'});
+          return cmn.sendfile('test-post', file, null).then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, 1);
+            chai.assert.equal(json.path, '/test/test-post');
+            chai.assert.equal(json.contentType, 'application/octet-stream');
+            chai.assert.equal(json.query, '');
+            chai.assert.equal(json.body, '\xdd\xcc\xbb\xaa');
+          });
+        });
+        it('should call onprogress for upload', function() {
+          var datasize = 4096;
+          var data = new ArrayBuffer(datasize);
+          var file = new File([data], "test.bin", {type: 'application/octet-stream'});
+          var called = false, total, loaded;
+          var onprogress = function(ev, isUpload) {
+            if (isUpload == true) {
+              called = true;
+              total = ev.total;
+              loaded = ev.loaded;
+              console.log('upload size:', ev.loaded, '/', ev.total);
+            }
+          };
+          return cmn.sendfile('test-post', file, null, onprogress).then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, 1);
+            chai.assert.equal(json.path, '/test/test-post');
+            chai.assert.equal(json.contentType, 'application/octet-stream');
+            chai.assert.isTrue(called, 'onprogress is called for upload');
+            chai.assert.equal(total, datasize, 'total size of upload');
+            chai.assert.equal(loaded, datasize, 'final loaded size of upload');
+          });
+        });
+        it('should call onprogress for download', function() {
+          var datasize = 4096;
+          var data = new Uint8Array(datasize);
+          for(var i = 0; i < datasize; i++) { data[i] = 32; }
+          var resp = '{"status":1,"path":"/test/test-post","contentType":"application/octet-stream","query":"","body":""}';
+          var file = new File([data.buffer], "test.bin", {type: 'application/octet-stream'});
+          var called = false, total, loaded;
+          var onprogress = function(ev, isUpload) {
+            if (isUpload == false) {
+              called = true;
+              total = ev.total;
+              loaded = ev.loaded;
+              console.log('download size:', ev.loaded, '/', ev.total);
+            }
+          };
+          return cmn.sendfile('test-post', file, null, onprogress).then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, 1);
+            chai.assert.equal(json.path, '/test/test-post');
+            chai.assert.equal(json.contentType, 'application/octet-stream');
+            chai.assert.isTrue(called, 'onprogress is called for download');
+            chai.assert.equal(total, datasize+resp.length, 'total size of download');
+            chai.assert.equal(loaded, datasize+resp.length, 'final loaded size of download');
+          });
+        });
+      });
+    </script>
+    <script>
       describe('cmn.ik()', function() {
         afterEach(function() {
           delete Object.prototype.b;

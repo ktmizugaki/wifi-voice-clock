@@ -15,6 +15,7 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include <sys/param.h>
 #include <esp_err.h>
 #include <esp_log.h>
 
@@ -22,10 +23,41 @@
 
 #include "http_html_cmn.h"
 
+#include "queryparser.h"
+
 #define TAG "html_cmn"
+
+#define FORM_TYPE   "application/x-www-form-urlencoded"
+#define MAX_QUERY_SIZE  (4*1024)
 
 static MAKE_EMBEDDED_HANDLER(cmn_js, "application/javascript")
 static MAKE_EMBEDDED_HANDLER(cmn_css, "text/css")
+
+esp_err_t http_cmn_send_error_json(httpd_req_t *req, esp_err_t err)
+{
+    const char *status;
+    const char *msg;
+    if (err == HTTP_CMN_ERR_INVALID_REQ) {
+        status = "400 Bad Request";
+        msg = "{\"status\":-1,\"message\":\"Bad Request\"}";
+    } else if (err == HTTP_CMN_ERR_SOCK_TIMEOUT) {
+        status = "408 Request Timeout";
+        msg = "{\"status\":-1,\"message\":\"Server closed this connection\"}";
+    } else if (err == HTTP_CMN_ERR_TOO_LARGE) {
+        status = "413 Entity Too Large";
+        msg = "{\"status\":-1,\"message\":\"Entity is too large\"}";
+    } else if (err == ESP_ERR_NOT_SUPPORTED) {
+        status = "404 Not Found";
+        msg = "{\"status\":-1,\"message\":\"Unsupported request\"}";
+    } else {
+        status = "500 Internal Server Error";
+        msg = "{\"status\":-1,\"message\":\"Server Error\"}";
+    }
+    httpd_resp_set_status(req, status);
+    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+    httpd_resp_sendstr(req, msg);
+    return ESP_FAIL;
+}
 
 esp_err_t http_html_cmn_register(httpd_handle_t handle)
 {
@@ -59,86 +91,111 @@ esp_err_t http_html_cmn_unregister(httpd_handle_t handle)
     return ESP_OK;
 }
 
-esp_err_t http_cmn_parse_query(char *query, parse_query_handler_t handler, void *user_data)
-{
-    if (query == NULL || handler == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-    while (1) {
-        char *key, *value;
-        size_t key_len, value_len;
-        key = strtok_r(NULL, "&", &query);
-        if (key == NULL) {
-            break;
-        }
-        value = strchr(key, '=');
-        if (value == NULL) { /* '=' is missing: key only segment */
-            if (query == NULL) {
-                key_len = strlen(key);
-            } else if (query[-1] != '\0') {
-                key_len = query-key;
-            } else {
-                key_len = query-1-key;
-            }
-            value_len = 0;
-        } else {
-            key_len = value-key;
-            *value++ = '\0';
-            if (query == NULL) {
-                value_len = strlen(value);
-            } else if (query[-1] != '\0') {
-                value_len = query-value;
-            } else {
-                value_len = query-1-value;
-            }
-        }
-        /* TODO: decode urlencoded chars */
-        ESP_LOGD(TAG, "%s(%zu)=%s(%zu)", key?key:"(null)", key_len, value?value:"(null)", value_len);
-        handler(key, key_len, value, value_len, user_data);
-    }
-    return ESP_OK;
-}
 
-esp_err_t http_cmn_handle_form_data(httpd_req_t *req, parse_query_handler_t handler, void *user_data)
+bool http_cmn_req_is_form_data(httpd_req_t *req)
 {
-#define FORM_TYPE   "application/x-www-form-urlencoded"
     char content_type[sizeof(FORM_TYPE)+4];
-    char *query;
-    size_t off;
-    int ret;
     esp_err_t err;
 
     err = httpd_req_get_hdr_value_str(req, "Content-Type", content_type, sizeof(content_type));
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "Content-Type: %s", content_type);
     }
-    if (err != ESP_OK || strcmp(content_type, FORM_TYPE) != 0) {
+    return (err == ESP_OK && strcmp(content_type, FORM_TYPE) == 0);
+}
+
+struct query_parser_bridge {
+    parse_query_handler_t handler;
+    void *user_data;
+};
+
+static void queryparser_bridge_handler(queryparser_t *parser, char *key, size_t key_len, char *value, size_t value_len, void *user_data)
+{
+    struct query_parser_bridge *bridge = user_data;
+    (void)parser;
+    bridge->handler(key, key_len, value, value_len, bridge->user_data);
+}
+
+esp_err_t http_cmn_parse_query(char *query, parse_query_handler_t handler, void *user_data)
+{
+    struct query_parser_bridge bridge = {handler, user_data};
+    int ret;
+    if (query == NULL || handler == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    ret = queryparser_parse(query, queryparser_bridge_handler, &bridge);
+    if (ret < 0) {
+        if (ret == QUERY_PARSER_MALFORMED) {
+            return HTTP_CMN_ERR_INVALID_REQ;
+        } else {
+            return HTTP_CMN_FAIL;
+        }
+    }
+    return HTTP_CMN_OK;
+}
+
+esp_err_t http_cmn_handle_form_data(httpd_req_t *req, parse_query_handler_t handler, void *user_data)
+{
+    struct query_parser_bridge bridge = {handler, user_data};
+    queryparser_t *parser;
+    size_t remaining_size, size;
+    void *scratch;
+    int ret;
+    esp_err_t err;
+
+    if (req == NULL || handler == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (!http_cmn_req_is_form_data(req)) {
         return HTTP_CMN_ERR_INVALID_REQ;
     }
     if (req->content_len == 0) {
         return HTTP_CMN_OK;
     }
-    query = malloc(req->content_len + 1);
-    off = 0;
-    if (query == NULL) {
-        return HTTP_CMN_FAIL;
+    if (req->content_len > MAX_QUERY_SIZE) {
+        return HTTP_CMN_ERR_TOO_LARGE;
     }
-    while (off < req->content_len) {
-        ret = httpd_req_recv(req, query + off, req->content_len - off);
+
+    /* this library does not expect to receive large data. */
+    parser = queryparser_new(MIN(1024, req->content_len+1), queryparser_bridge_handler, &bridge);
+    if (parser == NULL) {
+        return HTTP_CMN_ERR_TOO_LARGE;
+    }
+
+    remaining_size = req->content_len;
+    while (remaining_size > 0) {
+        queryparser_get_scratch(parser, &scratch, &size);
+        if (size < 80 && size < remaining_size) {
+            free(parser);
+            return HTTP_CMN_ERR_TOO_LARGE;
+        }
+        ret = httpd_req_recv(req, scratch, MIN(size, remaining_size));
         if (ret <= 0) {
             if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
-                ret = HTTP_CMN_ERR_SOCK_TIMEOUT;
+                err = HTTP_CMN_ERR_SOCK_TIMEOUT;
             } else {
-                ret = HTTP_CMN_FAIL;
+                err = HTTP_CMN_FAIL;
             }
-            free (query);
-            return ret;
+            free(parser);
+            return err;
         }
-        off += ret;
+        remaining_size -= ret;
+        ret = queryparser_update(parser, ret);
+        if (ret == QUERY_PARSER_MALFORMED) {
+            free(parser);
+            return HTTP_CMN_FAIL;
+        }
     }
-    query[off] = '\0';
+    ret = queryparser_finish(parser);
+    free(parser);
 
-    err = http_cmn_parse_query(query, handler, user_data);
-    free(query);
+    if (ret < 0) {
+        if (ret == QUERY_PARSER_MALFORMED) {
+            return HTTP_CMN_ERR_INVALID_REQ;
+        } else {
+            return HTTP_CMN_FAIL;
+        }
+    }
     return HTTP_CMN_OK;
 }

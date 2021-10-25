@@ -35,26 +35,6 @@
 
 static MAKE_EMBEDDED_HANDLER(http_clock_conf_html, "text/html")
 
-static esp_err_t clock_conf_send_error(httpd_req_t *req, esp_err_t err)
-{
-    const char *status;
-    const char *msg;
-    if (err == HTTP_CMN_ERR_INVALID_REQ) {
-        status = "400 Bad Request";
-        msg = "{\"status\":-1,\"message\":\"Bad Request\"}";
-    } else if (err == HTTP_CMN_ERR_SOCK_TIMEOUT) {
-        status = "408 Request Timeout";
-        msg = "{\"status\":-1,\"message\":\"Server closed this connection\"}";
-    } else {
-        status = "500 Internal Server Error";
-        msg = "{\"status\":-1,\"message\":\"Server Error\"}";
-    }
-    httpd_resp_set_status(req, status);
-    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
-    httpd_resp_sendstr(req, msg);
-    return ESP_FAIL;
-}
-
 static esp_err_t http_get_conf_handler(httpd_req_t *req)
 {
     json_str_t *json;
@@ -65,7 +45,7 @@ static esp_err_t http_get_conf_handler(httpd_req_t *req)
 
     json = new_json_str(72);
     if (json == NULL) {
-        return clock_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
     json_str_begin_object(json, NULL);
     json_str_add_integer(json, "status", 1);
@@ -121,12 +101,12 @@ static esp_err_t http_post_conf_handler(httpd_req_t *req)
     params.sync_time = -1;
     err = http_cmn_handle_form_data(req, post_conf_params_handler, &params);
     if (err != HTTP_CMN_OK) {
-        return clock_conf_send_error(req, err);
+        return http_cmn_send_error_json(req, err);
     }
 
     json = new_json_str(64);
     if (json == NULL) {
-        return clock_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);
@@ -165,7 +145,7 @@ static esp_err_t http_get_time_handler(httpd_req_t *req)
     time(&t);
     json = new_json_str(40);
     if (json == NULL) {
-        return clock_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);
@@ -201,12 +181,12 @@ static esp_err_t http_post_time_handler(httpd_req_t *req)
     epoch.tv_usec = 0;
     err = http_cmn_handle_form_data(req, post_time_params_handler, &epoch);
     if (err != HTTP_CMN_OK) {
-        return clock_conf_send_error(req, err);
+        return http_cmn_send_error_json(req, err);
     }
 
     json = new_json_str(64);
     if (json == NULL) {
-        return clock_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);

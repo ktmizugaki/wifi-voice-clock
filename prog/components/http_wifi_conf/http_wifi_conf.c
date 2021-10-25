@@ -40,26 +40,6 @@
 
 static MAKE_EMBEDDED_HANDLER(http_wifi_conf_html, "text/html")
 
-static esp_err_t wifi_conf_send_error(httpd_req_t *req, esp_err_t err)
-{
-    const char *status;
-    const char *msg;
-    if (err == HTTP_CMN_ERR_INVALID_REQ) {
-        status = "400 Bad Request";
-        msg = "{\"status\":-1,\"message\":\"Bad Request\"}";
-    } else if (err == HTTP_CMN_ERR_SOCK_TIMEOUT) {
-        status = "408 Request Timeout";
-        msg = "{\"status\":-1,\"message\":\"Server closed this connection\"}";
-    } else {
-        status = "500 Internal Server Error";
-        msg = "{\"status\":-1,\"message\":\"Server Error\"}";
-    }
-    httpd_resp_set_status(req, status);
-    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
-    httpd_resp_sendstr(req, msg);
-    return ESP_FAIL;
-}
-
 static esp_err_t http_get_scan_handler(httpd_req_t *req)
 {
     json_str_t *json;
@@ -73,7 +53,7 @@ static esp_err_t http_get_scan_handler(httpd_req_t *req)
     json = new_json_str(state == SIMPLE_WIFI_SCAN_DONE? 128: 32);
     if (json == NULL) {
         simple_wifi_release_scan_result(ap);
-        return wifi_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
     json_str_begin_object(json, NULL);
     json_str_add_integer(json, "status", (int)state);
@@ -132,7 +112,7 @@ static esp_err_t http_get_aps_handler(httpd_req_t *req)
 
     json = new_json_str(16+sizeof(struct wifi_conf)*wifi_conf_get_count());
     if (json == NULL) {
-        return wifi_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);
@@ -218,12 +198,12 @@ static esp_err_t http_post_aps_handler(httpd_req_t *req)
     memset(&params, 0, sizeof(params));
     err = http_cmn_handle_form_data(req, post_aps_params_handler, &params);
     if (err != HTTP_CMN_OK) {
-        return wifi_conf_send_error(req, err);
+        return http_cmn_send_error_json(req, err);
     }
 
     json = new_json_str(64);
     if (json == NULL) {
-        return wifi_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);
@@ -277,12 +257,12 @@ static esp_err_t http_delete_aps_handler(httpd_req_t *req)
     memset(&params, 0, sizeof(params));
     err = http_cmn_handle_form_data(req, post_aps_params_handler, &params);
     if (err != HTTP_CMN_OK) {
-        return wifi_conf_send_error(req, err);
+        return http_cmn_send_error_json(req, err);
     }
 
     json = new_json_str(64);
     if (json == NULL) {
-        return wifi_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);
@@ -325,7 +305,7 @@ static esp_err_t http_get_conn_handler(httpd_req_t *req)
 
         json = new_json_str(64+SWIFI_SSID_LEN*2);
         if (json == NULL) {
-            return wifi_conf_send_error(req, HTTP_CMN_FAIL);
+            return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
         }
 
         json_str_begin_object(json, NULL);
@@ -366,12 +346,12 @@ static esp_err_t http_post_conn_handler(httpd_req_t *req)
     memset(&params, 0, sizeof(params));
     err = http_cmn_handle_form_data(req, post_aps_params_handler, &params);
     if (err != HTTP_CMN_OK) {
-        return wifi_conf_send_error(req, err);
+        return http_cmn_send_error_json(req, err);
     }
 
     json = new_json_str(64);
     if (json == NULL) {
-        return wifi_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);

@@ -68,7 +68,7 @@ sub alarm_conf_handler {
             $json = '{"status":0,"message":"'.$message.'"}';
         } else {
             $alarms[$params{'index'}] = {
-                'enabled'=>($params{'enabled'}=~/1|true/),
+                'enabled'=>is_true_like($params{'enabled'}),
                 'name'=>$params{'name'},
                 'weeks'=>int($params{'weeks'}),
                 'alarm_id'=>int($params{'alarm_id'}),

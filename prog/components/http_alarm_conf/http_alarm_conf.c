@@ -48,26 +48,6 @@ struct alarm_params {
     struct alarm alarm;
 };
 
-static esp_err_t alarm_conf_send_error(httpd_req_t *req, esp_err_t err)
-{
-    const char *status;
-    const char *msg;
-    if (err == HTTP_CMN_ERR_INVALID_REQ) {
-        status = "400 Bad Request";
-        msg = "{\"status\":-1,\"message\":\"Bad Request\"}";
-    } else if (err == HTTP_CMN_ERR_SOCK_TIMEOUT) {
-        status = "408 Request Timeout";
-        msg = "{\"status\":-1,\"message\":\"Server closed this connection\"}";
-    } else {
-        status = "500 Internal Server Error";
-        msg = "{\"status\":-1,\"message\":\"Server Error\"}";
-    }
-    httpd_resp_set_status(req, status);
-    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
-    httpd_resp_sendstr(req, msg);
-    return ESP_FAIL;
-}
-
 static esp_err_t http_get_alarms_handler(httpd_req_t *req)
 {
     json_str_t *json;
@@ -81,7 +61,7 @@ static esp_err_t http_get_alarms_handler(httpd_req_t *req)
 
     json = new_json_str(24+68*num_alarm);
     if (json == NULL) {
-        return alarm_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);
@@ -182,12 +162,12 @@ static esp_err_t http_post_alarms_handler(httpd_req_t *req)
     params.index = -1;
     err = http_cmn_handle_form_data(req, post_alarms_params_handler, &params);
     if (err != HTTP_CMN_OK) {
-        return alarm_conf_send_error(req, err);
+        return http_cmn_send_error_json(req, err);
     }
 
     json = new_json_str(64);
     if (json == NULL) {
-        return alarm_conf_send_error(req, HTTP_CMN_FAIL);
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
     }
 
     json_str_begin_object(json, NULL);

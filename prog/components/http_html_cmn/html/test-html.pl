@@ -4,6 +4,7 @@ use warnings;
 use File::Basename;
 use HTTP::Daemon;
 use HTTP::Status;
+use Encode qw(decode);
 
 $ENV{PATH} = '/bin:/usr/bin';
 
@@ -38,18 +39,48 @@ sub get_handlers {
     return \@HANDLERS;
 }
 
+sub urldecode {
+    my $str = shift;
+    $str =~ s/\+/ /g;
+    $str =~ s/%([0-9a-fA-F]{2})/pack("H2",$1)/eg;
+    return decode('utf-8', $str);
+}
+
 sub parse_query {
     my ($query) = @_;
-    # TODO: url decode
-    return map {split /=/, $_, 2} split /&/, $query, -1;
+    return map {map { urldecode($_) } split /=/, $_, 2} split /&/, $query, -1;
+}
+
+sub value_from_multipart {
+    my ($req, $target_name, $index) = @_;
+    for my $message ($req->parts()) {
+        my $disposition = $message->header('Content-Disposition');
+        unless ($disposition) {
+            print STDERR "WARN Content-Disposition is missing\n";
+            next;
+        }
+        unless ($disposition =~ /^form-data;(?:.*;)?\s*name=(")?((?:[^""]|\\")*)\1(?:;|\s*$)/) {
+            print STDERR "WARN name is missing in Content-Disposition\n";
+            next;
+        }
+        my $name = $2;
+        if ($name eq $target_name) {
+            if ($index) {
+                $index--;
+                next;
+            }
+            return $message->content;
+        }
+    }
+    return undef;
 }
 
 sub is_true_like {
-    defined($_[0]) && $_[0] =~ /^(1|y|t|yes|true|on)$/;
+    defined($_[0]) && scalar($_[0] =~ /^(1|y|t|yes|true|on)$/);
 }
 
 sub is_false_like {
-    defined($_[0]) && $_[0] =~ /^(0|n|f|no|false|off)$/;
+    defined($_[0]) && scalar($_[0] =~ /^(0|n|f|no|false|off)$/);
 }
 
 sub to_json_bool {
@@ -76,6 +107,7 @@ sub start_httpd {
     }
 
     my $d = HTTP::Daemon->new(
+            ReuseAddr => 1,
             LocalAddr => '0.0.0.0',
             LocalPort => $port || 8080
         ) or die $!;

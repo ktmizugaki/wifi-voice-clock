@@ -32,6 +32,7 @@
 #include "app_clock.h"
 #include "app_switches.h"
 #include "app_wifi.h"
+#include "misc.h"
 #include "app_mode.h"
 
 #include "app_display.h"
@@ -99,6 +100,8 @@ app_mode_t app_mode_settings(void)
     ESP_LOGD(TAG, "handle_settings");
     ESP_ERROR_CHECK( app_display_ensure_init() );
     ESP_ERROR_CHECK( app_wifi_ensure_init() );
+
+    misc_ensure_vcc_level(VCC_LEVEL_WARNING, true);
 
     app_display_ensure_reset();
     app_display_clear();

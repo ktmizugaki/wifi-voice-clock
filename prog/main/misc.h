@@ -16,6 +16,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <vcc.h>
 
 #include "app_event.h"
 
@@ -27,6 +28,8 @@ extern "C" {
 extern void misc_ensure_init_udplog(void);
 extern void misc_udplog_vcc(void);
 #endif
+
+extern void misc_ensure_vcc_level(vcc_level_t min_level, bool is_interactive);
 
 extern bool misc_process_time_task(void);
 extern void misc_handle_event(const app_event_t *event);

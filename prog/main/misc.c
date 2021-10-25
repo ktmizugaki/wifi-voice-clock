@@ -27,9 +27,12 @@
 #include <vcc.h>
 #include <udplog.h>
 #endif /* CONFIG_USE_SYSLOG */
+#include <gfx.h>
 
 #include "app_event.h"
 #include "app_clock.h"
+#include "app_display.h"
+#include "power.h"
 #include "app_mode.h"
 
 #include "misc.h"
@@ -71,6 +74,32 @@ void misc_udplog_vcc(void)
 }
 #endif /* CONFIG_USE_SYSLOG */
 
+void misc_ensure_vcc_level(vcc_level_t min_level, bool is_interactive)
+{
+    vcc_level_t level = vcc_get_level(false);
+    if (level <= min_level) {
+        return;
+    }
+    if (level <= VCC_LEVEL_WARNING) {
+        if (is_interactive) {
+            if (app_display_ensure_init() == ESP_OK) {
+                app_display_ensure_reset();
+                app_display_clear();
+                gfx_text_puts_xy(LCD, &gfx_tinyfont, "Low Battery...", 0, 0);
+                app_display_update();
+                vTaskDelay(1500/portTICK_PERIOD_MS);
+            }
+        }
+    }
+    if (level <= VCC_LEVEL_DECREASING2) {
+        power_suspend();
+    } else if (level <= VCC_LEVEL_WARNING) {
+        power_hibernate();
+    } else {
+        power_halt();
+    }
+}
+
 bool misc_process_time_task(void)
 {
     time_t time;
@@ -87,6 +116,7 @@ bool misc_process_time_task(void)
     s_task_check_time = time;
     clock_localtime(&tm);
     if (clock_conf_is_sync_time(&tm, range)) {
+        misc_ensure_vcc_level(VCC_LEVEL_WARNING, false);
         app_clock_start_sync();
         result = true;
     }

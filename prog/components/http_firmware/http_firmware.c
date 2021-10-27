@@ -15,6 +15,7 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include <sys/param.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_idf_version.h>
@@ -33,8 +34,46 @@
 
 #define TAG "firmware"
 #define FIRMWARE_URI  "/firmware"
+#define OCTET_STREAM_TYPE   "application/octet-stream"
+
+#define BUF_SIZE    1024
+#define MIN_IMAGE_SIZE  0x8000
+
+static void ota_restart_task(void *arg)
+{
+    (void)arg;
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Restart due to OTA");
+    esp_restart();
+}
+
+typedef struct {
+    const esp_partition_t *partition;
+    size_t image_len;
+    int64_t elapsed;
+} ota_work_t;
 
 static MAKE_EMBEDDED_HANDLER(http_firmware_html, "text/html")
+
+static esp_err_t send_bad_request_json(httpd_req_t *req, const char *json)
+{
+    httpd_resp_set_status(req, "400 Bad Request");
+    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+    httpd_resp_sendstr(req, json);
+    return ESP_FAIL;
+}
+
+static bool is_octet_stream(httpd_req_t *req)
+{
+    char content_type[sizeof(OCTET_STREAM_TYPE)+4];
+    esp_err_t err;
+
+    err = httpd_req_get_hdr_value_str(req, "Content-Type", content_type, sizeof(content_type));
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "Content-Type: %s", content_type);
+    }
+    return (err == ESP_OK && strcmp(content_type, OCTET_STREAM_TYPE) == 0);
+}
 
 static esp_err_t http_get_version_handler(httpd_req_t *req)
 {
@@ -64,14 +103,167 @@ static esp_err_t http_get_version_handler(httpd_req_t *req)
     return err;
 }
 
+static esp_err_t http_get_partinfo_handler(httpd_req_t *req)
+{
+    json_str_t *json;
+    const esp_partition_t *partition;
+    uint32_t appsize, spiffssize;
+    esp_err_t err;
+
+    partition = esp_ota_get_next_update_partition(NULL);
+    if (partition != NULL) {
+        appsize = partition->size;
+    } else {
+        appsize = 0;
+    }
+    partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, NULL);
+    if (partition != NULL) {
+        spiffssize = partition->size;
+    } else {
+        spiffssize = 0;
+    }
+
+    json = new_json_str(64);
+    if (json == NULL) {
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
+    }
+
+    json_str_begin_object(json, NULL);
+    json_str_add_integer(json, "status", 1);
+    json_str_add_integer(json, "appsize", appsize);
+    json_str_add_integer(json, "spiffssize", spiffssize);
+    json_str_end_object(json);
+    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+    err = httpd_resp_sendstr(req, json_str_finalize(json));
+    delete_json_str(json);
+    return err;
+}
+
+static esp_err_t update_firmware(httpd_req_t *req, ota_work_t *work)
+{
+    esp_ota_handle_t handle;
+    char *buf;
+    int recv_size;
+    int remaining_size;
+    int64_t start_time, feedwdt_time;
+    esp_err_t err;
+
+    buf = malloc(BUF_SIZE);
+    if (buf == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+
+    ESP_LOGI(TAG, "Start OTA update");
+    handle = 0;
+    err = esp_ota_begin(work->partition, work->image_len, &handle);
+    if (err != ESP_OK) {
+        return ESP_FAIL;
+    }
+
+    start_time = feedwdt_time = esp_timer_get_time();
+    vTaskDelay(1);
+
+    remaining_size = work->image_len;
+    while (remaining_size > 0) {
+        recv_size = MIN(remaining_size, BUF_SIZE);
+
+        recv_size = httpd_req_recv(req, buf, recv_size);
+        if (recv_size <= 0) {
+            err = ESP_ERR_TIMEOUT;
+            goto fail;
+        }
+
+        err = ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ota_write(handle, buf, recv_size));
+        if (err != ESP_OK) {
+            goto fail;
+        }
+
+        remaining_size -= recv_size;
+        if (esp_timer_get_time() - feedwdt_time >= (CONFIG_TASK_WDT_TIMEOUT_S*1000000)/2) {
+            feedwdt_time = esp_timer_get_time();
+            vTaskDelay(1);
+        }
+    }
+
+    err = ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ota_end(handle));
+    handle = 0;
+    if (err != ESP_OK) {
+        goto fail;
+    }
+
+    err = ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ota_set_boot_partition(work->partition));
+    if (err != ESP_OK) {
+        goto fail;
+    }
+
+    work->elapsed = esp_timer_get_time() - start_time;
+    ESP_LOGI(TAG, "Finished writing firmware.");
+    free(buf);
+    return ESP_OK;
+
+fail:
+    if (handle != 0) {
+        esp_ota_end(handle);
+    }
+    ESP_LOGI(TAG, "OTA update failed");
+    free(buf);
+    return err;
+}
+
 static esp_err_t http_post_update_handler(httpd_req_t *req)
 {
-    const char *json;
+    ota_work_t work;
+    char json[96];
+    esp_err_t err;
 
-    json = "{\"status\":0,\"message\":\"Not implemented yet\"}";
+    work.partition = esp_ota_get_next_update_partition(NULL);
+    if (work.partition == NULL) {
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
+    }
+    work.image_len = req->content_len;
 
+    ESP_LOGI(TAG, "target partition: ota_%d, address=%#x, size=%#x, name=%.16s",
+        work.partition->subtype-ESP_PARTITION_SUBTYPE_APP_OTA_MIN,
+        work.partition->address, work.partition->size, work.partition->label);
+
+    if (work.image_len == 0) {
+        return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Content-Length is required\"}");
+    }
+    if (work.image_len < MIN_IMAGE_SIZE) {
+        return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Image is too small\"}");
+    }
+    if (work.image_len > work.partition->size) {
+        return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Image is too large\"}");
+    }
+
+    if (!is_octet_stream(req)) {
+        if (httpd_req_get_hdr_value_len(req, "Content-Type") == 0) {
+            return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Content-Type is required\"}");
+        } else {
+            return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Unsupported Content-Type\"}");
+        }
+    }
+
+    err = update_firmware(req, &work);
+
+    if (err != ESP_OK) {
+        if (err == ESP_ERR_TIMEOUT) {
+            http_cmn_send_error_json(req, HTTP_CMN_ERR_SOCK_TIMEOUT);
+        } else if (err == ESP_ERR_OTA_VALIDATE_FAILED) {
+            http_cmn_send_error_json(req, HTTP_CMN_ERR_INVALID_REQ);
+        } else {
+            http_cmn_send_error_json(req, err);
+        }
+        return ESP_FAIL;
+    }
+
+    snprintf(json, sizeof(json), "{\"status\":-1,\"message\":\"Firmware updated in %d.%06d sec\\nRebooting...\"}",
+        (int)(work.elapsed/1000000), (int)(work.elapsed%1000000));
     httpd_resp_set_type(req, HTTPD_TYPE_JSON);
-    return httpd_resp_sendstr(req, json);
+    err = httpd_resp_sendstr(req, json);
+
+    xTaskCreate(ota_restart_task, "ota_restart_task", 8*1024, NULL, 10, NULL);
+    return err;
 }
 
 static esp_err_t http_post_spiffs_handler(httpd_req_t *req)
@@ -97,6 +289,9 @@ static esp_err_t http_firmware_handler(httpd_req_t *req)
     }
     if (test_path(HTTP_GET, "/version")) {
         return http_get_version_handler(req);
+    }
+    if (test_path(HTTP_GET, "/partinfo")) {
+        return http_get_partinfo_handler(req);
     }
     if (test_path(HTTP_POST, "/update")) {
         return http_post_update_handler(req);

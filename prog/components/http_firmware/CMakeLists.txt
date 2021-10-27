@@ -1,4 +1,4 @@
-idf_component_register(SRCS "http_firmware.c"
+idf_component_register(SRCS "http_firmware.c" "ota_helper.c"
         INCLUDE_DIRS "include"
         EMBED_FILES
                 html/http_firmware.html

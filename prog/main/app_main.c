@@ -24,6 +24,7 @@
 #include <wifi_conf.h>
 #include <clock.h>
 #include <clock_conf.h>
+#include <ota_helper.h>
 
 #include "app_event.h"
 #include "app_clock.h"
@@ -54,6 +55,22 @@ static esp_err_t app_init_nvs(void)
         err = nvs_flash_secure_init(&cfg);
     }
     return err;
+}
+
+static void do_self_test(void)
+{
+    int vcc;
+    esp_err_t err;
+    bool ok = true;
+    err = vcc_read(&vcc, true);
+    if (!(err == ESP_OK && vcc >= 2500)) {
+        ok = false;
+    }
+    if (ok) {
+        ota_mark_valid();
+    } else if (ota_can_rollback()) {
+        ota_rollback();
+    }
 }
 
 app_mode_t app_mode_get_current(void)
@@ -98,6 +115,13 @@ void app_main(void)
     ESP_ERROR_CHECK( app_init_nvs() );
     ESP_ERROR_CHECK( app_clock_init() );
     ESP_ERROR_CHECK( clock_conf_init() );
+
+    if (LOG_LOCAL_LEVEL >= ESP_LOG_INFO) {
+        ota_print_partition_info();
+    }
+    if (ota_need_self_test()) {
+        do_self_test();
+    }
 
     s_mode = determin_mode();
     while (true) {

@@ -35,12 +35,13 @@
         cmn.api('version').then(draw_version);
       }
 
-      function draw_firmware() {
+      function draw_firmware(info) {
         cmn.tmpls([
           ['h2',{class:'row'},'ファームウェア更新'],
           ['div',{class:"row"},
             "ファームウェア: ",
-            ['input',{type:'file',name:'firmware',id:'firmware'}]],
+            ['input',{type:'file',name:'firmware',id:'firmware'}], ['br'],
+            "(最大 "+(info.appsize/1024)+" KB)"],
           ['div',{class:"row"},
             ['input',{type:'submit',value:'更新'}]],
         ], cmn.el('update'));
@@ -61,15 +62,26 @@
           });
       }
 
-      function draw_spiffs() {
+      function draw_spiffs(info) {
         cmn.tmpls([
           ['h2',{class:'row'},'SPIFFS更新'],
           ['div',{class:"row"},
             "SPIFFS: ",
-            ['input',{type:'file',name:'spiffs',id:'spiffs-file'}]],
+            ['input',{type:'file',name:'spiffs',id:'spiffs-file'}], ['br'],
+            "("+(info.spiffssize/1024)+" KB)"],
           ['div',{class:"row"},
             ['input',{type:'submit',value:'更新'}]],
         ], cmn.el('spiffs'));
+      }
+
+      function get_partinfo() {
+        cmn.api('partinfo').then(function(info) {
+          if (info && info.status != 1) {
+            info = {appsize:0,spiffssize:0};
+          }
+          draw_firmware(info);
+          draw_spiffs(info);
+        });
       }
 
       function post_spiffs(ev) {
@@ -105,8 +117,7 @@
 
       function doload() {
         get_version();
-        draw_firmware();
-        draw_spiffs();
+        get_partinfo();
 
         cmn.on('update', 'submit', post_update);
         cmn.on('spiffs', 'submit', post_spiffs);

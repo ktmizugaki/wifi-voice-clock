@@ -8,7 +8,671 @@
     <title>cmn test</title>
     <link rel="stylesheet" href="/cmn.css">
     <script src="/cmn.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/mocha/mocha.css" />
+    <script src="https://unpkg.com/chai/chai.js"></script>
+    <script src="https://unpkg.com/mocha/mocha.js"></script>
   </head>
   <body>
+    <div id="mocha"></div>
+    <script class="mocha-init">
+      /*
+       * mocha seems to expect '\n' in front of 'stack' property but it is not the case in my environment.
+       * hack 'stack' property of chai.AssertionError to prepend '\n'.
+       */
+      (function setStack(obj, stack) {
+        Object.defineProperty(obj, 'stack', {
+          set: function setter(stack) { setStack(this, stack && stack.replace(/^\n?/, '\n')); },
+          get: function(){ return stack; },
+          configurable: true,
+        });
+      })(chai.AssertionError.prototype, '');
+      mocha.setup({ui: 'bdd'});
+      mocha.checkLeaks();
+    </script>
+    <script>
+      describe('cmn.api()', function() {
+        it('should return json for GET request', function() {
+          return cmn.api('test-get').then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, 1);
+            chai.assert.equal(json.path, '/test/test-get');
+            chai.assert.equal(json.query, '');
+          });
+        });
+        it('should return json for GET request with query string', function() {
+          return cmn.api('test-get?key1=value1&key2=value2').then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, 1);
+            chai.assert.equal(json.path, '/test/test-get');
+            chai.assert.equal(json.query, 'key1=value1&key2=value2');
+          });
+        });
+        it('should return json for POST request of text/plain', function() {
+          return cmn.api('test-post', {method:'POST',headers:{'Content-Type':'text/plain'},body:'this is a plain text'}).then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, 1);
+            chai.assert.equal(json.path, '/test/test-post');
+            chai.assert.equal(json.contentType, 'text/plain');
+            chai.assert.equal(json.query, '');
+            chai.assert.equal(json.body, 'this is a plain text');
+          });
+        });
+        it('should return json for POST request of application/octet-stream', function() {
+          return cmn.api('test-post', {method:'POST',headers:{'Content-Type':'application/octet-stream'},body:'\xDD\xCC\xBB\xAA'}).then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, 1);
+            chai.assert.equal(json.path, '/test/test-post');
+            chai.assert.equal(json.contentType, 'application/octet-stream');
+            chai.assert.equal(json.query, '');
+            chai.assert.equal(json.body, '\xdd\xcc\xbb\xaa');
+          });
+        });
+        it('should return json for request to non-exist path', function() {
+          return cmn.api('test-non-exist').then(function(json) {
+            chai.assert.isObject(json);
+            chai.assert.equal(json.status, -1);
+            chai.assert.isString(json.message);
+          });
+        });
+      });
+    </script>
+    <script>
+      describe('cmn.ik()', function() {
+        afterEach(function() {
+          delete Object.prototype.b;
+        });
+        it('should be true for own properties', function() {
+          Object.prototype.b = 2;
+          chai.assert.isTrue(cmn.ik({a:1}, 'a'));
+          chai.assert.isTrue(cmn.ik({a:1,b:2}, 'b'));
+          chai.assert.isTrue(cmn.ik({a:undefined,b:undefined}, 'a'));
+          chai.assert.isTrue(cmn.ik({a:undefined,b:undefined}, 'b'));
+        });
+        it('should be false for not own properties', function() {
+          Object.prototype.b = 2;
+          chai.assert.isFalse(cmn.ik({a:1}, 'b'));
+          chai.assert.isFalse(cmn.ik({a:1}, 'c'));
+          chai.assert.isFalse(cmn.ik({a:1}, 'toString'));
+        });
+      });
+    </script>
+    <script>
+      describe('cmn.ready()', function() {
+        var called = false, evtype = undefined;
+        cmn.ready(function(ev) {
+          called = true;
+          evtype = ev.type
+        });
+        it('should call callback function', function() {
+          chai.assert.isTrue(called, 'ready function called');
+          chai.assert.equal(evtype, 'DOMContentLoaded');
+        });
+      });
+    </script>
+    <script>
+      describe('cmn.qstr()', function() {
+        it('should create query string', function() {
+          chai.assert.equal(cmn.qstr({key1:'value1',key2:'value2'}), 'key1=value1&key2=value2');
+        });
+        it('should create query string with key and value escaped', function() {
+          chai.assert.equal(cmn.qstr({'key=1':'value=1','key&2':'value&2'}), 'key%3D1=value%3D1&key%262=value%262');
+        });
+        it('should create query string with utf8 encoded string', function() {
+          chai.assert.equal(cmn.qstr({'あ':'ん'}), '%E3%81%82=%E3%82%93');
+        });
+      });
+    </script>
+    <div id="test-el"><span id="test-el-child">test-el</span></div>
+    <script>
+      describe('cmn.el()', function() {
+        it('should return element', function() {
+          var el = cmn.el('test-el');
+          chai.assert.exists(el);
+          chai.assert.equal(el.id, 'test-el');
+        });
+        it('should accept element as argument', function() {
+          var el = document.getElementById('test-el');
+          chai.assert.exists(el);
+          chai.assert.equal(cmn.el(el), el);
+        });
+        it('should return null when not found', function() {
+          chai.assert.isNull(cmn.el('test-el-not-exist'));
+        });
+      });
+    </script>
+    <div id="test-tag"></div>
+    <script>
+      describe('cmn.tag()', function() {
+        var parent;
+        before(function cleanTestTagDiv() {
+          parent = document.getElementById('test-tag');
+          chai.assert.exists(parent);
+        });
+        beforeEach(function cleanTestTagDiv() {
+          while (parent.firstChild) {
+            parent.removeChild(parent.firstChild);
+          }
+        });
+
+        it('should create div element without parent', function() {
+          var el = cmn.tag('div');
+          chai.assert.exists(el);
+          chai.assert.equal(el.tagName, 'DIV');
+          chai.assert.notExists(el.parentNode);
+        });
+        it('should create span element without parent', function() {
+          var el = cmn.tag('span');
+          chai.assert.exists(el);
+          chai.assert.equal(el.tagName, 'SPAN');
+          chai.assert.notExists(el.parentNode);
+        });
+        it('should create div element with parent', function() {
+          var el = cmn.tag('div', parent);
+          chai.assert.exists(el);
+          chai.assert.equal(el.tagName, 'DIV');
+          chai.assert.equal(el.parentNode, parent);
+        });
+        it('should create span element with parent', function() {
+          var el = cmn.tag('span', parent);
+          chai.assert.exists(el);
+          chai.assert.equal(el.tagName, 'SPAN');
+          chai.assert.equal(el.parentNode, parent);
+        });
+        it('should accept id for parent', function() {
+          var el = cmn.tag('span', 'test-tag');
+          chai.assert.exists(el);
+          chai.assert.equal(el.tagName, 'SPAN');
+          chai.assert.equal(el.parentNode, parent);
+        });
+      });
+    </script>
+    <div id="test-text"></div>
+    <script>
+      describe('cmn.text()', function() {
+        var parent;
+        before(function cleanTestTextDiv() {
+          parent = document.getElementById('test-text');
+          chai.assert.exists(parent);
+        });
+        beforeEach(function cleanTestTextDiv() {
+          while (parent.firstChild) { parent.removeChild(parent.firstChild); }
+        });
+
+        it('should create text node without parent', function() {
+          var text = cmn.text('text node without parent');
+          chai.assert.exists(text);
+          chai.assert.equal(text.data, 'text node without parent');
+          chai.assert.notExists(text.parentNode);
+        });
+        it('should create text node with parent', function() {
+          var text = cmn.text('text node with parent', parent);
+          chai.assert.exists(text);
+          chai.assert.equal(text.data, 'text node with parent');
+          chai.assert.equal(text.parentNode, parent);
+        });
+        it('should accept id for parent', function() {
+          var text = cmn.text('text node with parent id', 'test-text');
+          chai.assert.exists(text);
+          chai.assert.equal(text.data, 'text node with parent id');
+          chai.assert.equal(text.parentNode, parent);
+        });
+      });
+    </script>
+    <div id="test-shown"><span id="test-shown-shown" class="">shown<span><span id="test-shown-hidden" class="hidden">hidden<span></div>
+    <script>
+      describe('cmn.shown()', function() {
+        it('should be true for shown element', function() {
+          var el = document.getElementById('test-shown-shown');
+          chai.assert.exists(el);
+          chai.assert.isTrue(cmn.shown(el));
+        });
+        it('should be false for hidden element', function() {
+          var el = document.getElementById('test-shown-hidden');
+          chai.assert.isFalse(cmn.shown(el));
+        });
+        it('should accept id', function() {
+          chai.assert.isTrue(cmn.shown('test-shown-shown'));
+          chai.assert.isFalse(cmn.shown('test-shown-hidden'));
+        });
+      });
+    </script>
+    <div id="test-show" class="hidden">test-show</div>
+    <script>
+      describe('cmn.show()', function() {
+        var element;
+        before(function() {
+          element = document.getElementById('test-show');
+          chai.assert.exists(element);
+        });
+        function display(el) {
+          return window.getComputedStyle(el)['display'];
+        }
+
+        it('should show element', function() {
+          element.className = 'hidden';
+          chai.assert.equal(display(element), 'none');
+
+          cmn.show(element, true);
+          chai.assert.isDefined(display(element));
+          chai.assert.notEqual(display(element), 'none');
+        });
+        it('should hide element', function() {
+          element.className = '';
+          chai.assert.isDefined(display(element));
+          chai.assert.notEqual(display(element), 'none');
+
+          cmn.show(element, false);
+          chai.assert.equal(display(element), 'none');
+        });
+        it('should accept id', function() {
+          element.className = 'hidden';
+          chai.assert.equal(display(element), 'none');
+
+          cmn.show('test-show', true);
+          chai.assert.isDefined(display(element));
+          chai.assert.notEqual(display(element), 'none');
+          cmn.show('test-show', false);
+          chai.assert.equal(display(element), 'none');
+        });
+      });
+    </script>
+    <div id="test-cls" class="cls1 cls2 cls3">test-cls</div>
+    <script>
+      describe('cmn.cls()', function() {
+        var element;
+        before(function() {
+          element = document.getElementById('test-cls');
+          chai.assert.exists(element);
+        });
+
+        it('should add class to element', function() {
+          element.className = 'cls1 cls2 cls3';
+
+          cmn.cls(element, 'added', true);
+          chai.assert.equal(element.className, 'cls1 cls2 cls3 added');
+        });
+        it('should add class to element when second parameter omitted', function() {
+          element.className = 'cls1 cls2 cls3';
+
+          cmn.cls(element, 'added');
+          chai.assert.equal(element.className, 'cls1 cls2 cls3 added');
+        });
+        it('should remove class at beginning from element', function() {
+          element.className = 'removed cls1 cls2 cls3';
+
+          cmn.cls(element, 'removed', false);
+          chai.assert.equal(element.className, 'cls1 cls2 cls3');
+        });
+        it('should remove class in middle from element', function() {
+          element.className = 'cls1 removed cls2 cls3';
+
+          cmn.cls(element, 'removed', false);
+          chai.assert.equal(element.className, 'cls1 cls2 cls3');
+        });
+        it('should remove class at end from element', function() {
+          element.className = 'cls1 cls2 cls3 removed';
+
+          cmn.cls(element, 'removed', false);
+          chai.assert.equal(element.className, 'cls1 cls2 cls3');
+        });
+        it('should remove dupplicating class from element', function() {
+          element.className = 'removed cls1 removed cls2 removed cls3 removed';
+
+          cmn.cls(element, 'removed', false);
+          chai.assert.equal(element.className, 'cls1 cls2 cls3');
+        });
+        it('should accept id', function() {
+          element.className = 'cls1 removed cls2 cls3';
+
+          cmn.cls('test-cls', 'added', true);
+          cmn.cls('test-cls', 'removed', false);
+          chai.assert.equal(element.className, 'cls1 cls2 cls3 added');
+        });
+      });
+    </script>
+    <div id="test-modal-shown"><div id="test-modal-shown-1" class="modal hidden"></div><div id="test-modal-shown-2" class="modal hidden"></div></div>
+    <script>
+      describe('cmn.modalShown()', function() {
+        var modal1, modal2;
+        before(function() {
+          modal1 = document.getElementById('test-modal-shown-1');
+          modal2 = document.getElementById('test-modal-shown-2');
+          chai.assert.exists(modal1);
+          chai.assert.exists(modal2);
+        });
+        after(function() {
+          modal1.className = 'modal hidden';
+          modal2.className = 'modal hidden';
+        });
+
+        it('should be true 1 and 2', function() {
+          modal1.className = 'modal';
+          modal2.className = 'modal';
+          chai.assert.isTrue(cmn.modalShown());
+        });
+        it('should be true 1', function() {
+          modal1.className = 'modal';
+          modal2.className = 'modal hidden';
+          chai.assert.isTrue(cmn.modalShown());
+        });
+        it('should be true 2', function() {
+          modal1.className = 'modal';
+          modal2.className = 'modal hidden';
+          chai.assert.isTrue(cmn.modalShown());
+        });
+        it('should be false', function() {
+          modal1.className = 'modal hidden';
+          modal2.className = 'modal hidden';
+          chai.assert.isFalse(cmn.modalShown());
+        });
+      });
+    </script>
+    <div id="test-modal"><div id="test-modal-1" class="modal hidden"></div><div id="test-modal-2" class="modal hidden"></div></div>
+    <script>
+      describe('cmn.modal()', function() {
+        var modal1, modal2;
+        before(function() {
+          modal1 = document.getElementById('test-modal-1');
+          modal2 = document.getElementById('test-modal-2');
+          chai.assert.exists(modal1);
+          chai.assert.exists(modal2);
+        });
+
+        after(function() {
+          modal1.className = 'modal hidden';
+          modal2.className = 'modal hidden';
+          cmn.cls(document.body, 'modal-shown', false);
+        });
+
+        it('should show modal 1', function() {
+          /* to be honest, not sure what to test. */
+          modal1.className = 'modal hidden';
+          modal2.className = 'modal hidden';
+
+          cmn.modal(modal1);
+          chai.assert.equal(modal1.className, 'modal');
+          chai.assert.equal(modal2.className, 'modal hidden');
+          chai.assert.include(document.body.className, 'modal-shown');
+        });
+        it('should hide modal 1', function() {
+          modal1.className = 'modal';
+          modal2.className = 'modal';
+
+          cmn.modal(modal1, false);
+          chai.assert.equal(modal1.className, 'modal hidden');
+          chai.assert.equal(modal2.className, 'modal');
+          chai.assert.include(document.body.className, 'modal-shown');
+        });
+        it('should hide all modals', function() {
+          modal1.className = 'modal';
+          modal2.className = 'modal';
+
+          cmn.modal(modal1, false);
+          cmn.modal(modal2, false);
+          chai.assert.equal(modal1.className, 'modal hidden');
+          chai.assert.equal(modal2.className, 'modal hidden');
+          chai.assert.notInclude(document.body.className, 'modal-shown');
+        });
+        it('should accept id', function() {
+          modal1.className = 'modal hidden';
+
+          cmn.modal('test-modal-1');
+          chai.assert.equal(modal1.className, 'modal');
+          chai.assert.include(document.body.className, 'modal-shown');
+        });
+      });
+    </script>
+    <form id="test-form"><input type="text" name="key1" value="value1"><input type="text" name="key2" value="value2"><input type="radio" name="rkey" value="rvalue1"><input type="radio" name="rkey" value="rvalue2"><input type="checkbox" name="chkkey" value="chkvalue1"><input type="checkbox" name="chkkey" value="chkvalue2"></form>
+    <script>
+      describe('cmn.val()', function() {
+        var form;
+        before(function() {
+          form = document.getElementById('test-form');
+          chai.assert.exists(form);
+          chai.assert.exists(form.key1);
+          chai.assert.exists(form.key2);
+        });
+        beforeEach(function() {
+          form.key1.value = 'value1';
+          form.key2.value = 'value2';
+        });
+
+        it('should get text value1', function() {
+          chai.assert.equal(cmn.val(form, 'key1'), 'value1');
+        });
+        it('should get text value2', function() {
+          chai.assert.equal(cmn.val(form, 'key2'), 'value2');
+        });
+        it('should set text value1', function() {
+          cmn.val(form, 'key1', 'newvalue1');
+          chai.assert.equal(form.key1.value, 'newvalue1');
+          chai.assert.equal(form.key2.value, 'value2');
+        });
+        it('should set text value2', function() {
+          cmn.val(form, 'key2', 'newvalue2');
+          chai.assert.equal(form.key1.value, 'value1');
+          chai.assert.equal(form.key2.value, 'newvalue2');
+        });
+      });
+    </script>
+    <script>
+      describe('cmn.chk() for radios', function() {
+        var form;
+        before(function() {
+          form = document.getElementById('test-form');
+          chai.assert.exists(form);
+          chai.assert.exists(form.rkey);
+        });
+        beforeEach(function() {
+          form.rkey[0].checked = false;
+          form.rkey[1].checked = false;
+        });
+
+        it('should get radio value none', function() {
+          form.rkey[0].checked = false;
+          form.rkey[1].checked = false;
+          chai.assert.deepEqual(cmn.chk(form, 'rkey'), []);
+        });
+        it('should get radio value 1', function() {
+          form.rkey[0].checked = true;
+          form.rkey[1].checked = false;
+          chai.assert.deepEqual(cmn.chk(form, 'rkey'), ['rvalue1']);
+        });
+        it('should get radio value 2', function() {
+          form.rkey[0].checked = false;
+          form.rkey[1].checked = true;
+          chai.assert.deepEqual(cmn.chk(form, 'rkey'), ['rvalue2']);
+        });
+        it('should set radio value 1', function() {
+          form.rkey[0].checked = false;
+          form.rkey[1].checked = false;
+          cmn.chk(form, 'rkey', 'rvalue1');
+          chai.assert.isTrue(form.rkey[0].checked);
+          chai.assert.isFalse(form.rkey[1].checked);
+        });
+        it('should set radio value 2', function() {
+          form.rkey[0].checked = false;
+          form.rkey[1].checked = false;
+          cmn.chk(form, 'rkey', 'rvalue2');
+          chai.assert.isFalse(form.rkey[0].checked);
+          chai.assert.isTrue(form.rkey[1].checked);
+        });
+      });
+    </script>
+    <script>
+      describe('cmn.chk() for chexboxes', function() {
+        var form;
+        before(function() {
+          form = document.getElementById('test-form');
+          chai.assert.exists(form);
+          chai.assert.exists(form.chkkey);
+        });
+        beforeEach(function() {
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = false;
+        });
+
+        it('should get checkbox value empty', function() {
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = false;
+          chai.assert.deepEqual(cmn.chk(form, 'chkkey'), []);
+        });
+        it('should get checkbox value 1', function() {
+          form.chkkey[0].checked = true;
+          form.chkkey[1].checked = false;
+          chai.assert.deepEqual(cmn.chk(form, 'chkkey'), ['chkvalue1']);
+        });
+        it('should get checkbox value 2', function() {
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = true;
+          chai.assert.deepEqual(cmn.chk(form, 'chkkey'), ['chkvalue2']);
+        });
+        it('should get checkbox value all', function() {
+          form.chkkey[0].checked = true;
+          form.chkkey[1].checked = true;
+          chai.assert.deepEqual(cmn.chk(form, 'chkkey'), ['chkvalue1','chkvalue2']);
+        });
+        it('should check checkbox 1', function() {
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = false;
+          cmn.chk(form, 'chkkey', 'chkvalue1');
+          chai.assert.isTrue(form.chkkey[0].checked);
+          chai.assert.isFalse(form.chkkey[1].checked);
+        });
+        it('should check checkbox 2', function() {
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = false;
+          cmn.chk(form, 'chkkey', 'chkvalue2');
+          chai.assert.isFalse(form.chkkey[0].checked);
+          chai.assert.isTrue(form.chkkey[1].checked);
+        });
+        it('should check checkbox 1 by array', function() {
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = false;
+          cmn.chk(form, 'chkkey', ['chkvalue1']);
+          chai.assert.isTrue(form.chkkey[0].checked);
+          chai.assert.isFalse(form.chkkey[1].checked);
+        });
+        it('should check checkbox 2 by array', function() {
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = false;
+          cmn.chk(form, 'chkkey', ['chkvalue2']);
+          chai.assert.isFalse(form.chkkey[0].checked);
+          chai.assert.isTrue(form.chkkey[1].checked);
+        });
+        it('should check all checkboxes', function() {
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = false;
+          cmn.chk(form, 'chkkey', ['chkvalue1','chkvalue2']);
+          chai.assert.isTrue(form.chkkey[0].checked);
+          chai.assert.isTrue(form.chkkey[1].checked);
+        });
+        it('should uncheck checkbox 1', function() {
+          form.chkkey[0].checked = true;
+          form.chkkey[1].checked = true;
+          cmn.chk(form, 'chkkey', ['chkvalue2']);
+          chai.assert.isFalse(form.chkkey[0].checked);
+          chai.assert.isTrue(form.chkkey[1].checked);
+        });
+        it('should uncheck checkbox 2', function() {
+          form.chkkey[0].checked = true;
+          form.chkkey[1].checked = true;
+          cmn.chk(form, 'chkkey', ['chkvalue1']);
+          chai.assert.isTrue(form.chkkey[0].checked);
+          chai.assert.isFalse(form.chkkey[1].checked);
+        });
+        it('should uncheck all checkboxes', function() {
+          form.chkkey[0].checked = true;
+          form.chkkey[1].checked = true;
+          cmn.chk(form, 'chkkey', []);
+          chai.assert.isFalse(form.chkkey[0].checked);
+          chai.assert.isFalse(form.chkkey[1].checked);
+        });
+      });
+    </script>
+    <script>
+      describe('cmn.build()', function() {
+        var form;
+        before(function() {
+          form = document.getElementById('test-form');
+          chai.assert.exists(form);
+          chai.assert.exists(form.key1);
+          chai.assert.exists(form.key2);
+          chai.assert.exists(form.rkey);
+          chai.assert.exists(form.chkkey);
+        });
+        beforeEach(function() {
+          form.key1.value = 'value1';
+          form.key2.value = 'value2';
+          form.rkey[0].checked = true;
+          form.rkey[1].checked = false;
+          form.chkkey[0].checked = false;
+          form.chkkey[1].checked = true;
+        });
+
+        it('should build object', function() {
+          chai.assert.deepEqual(cmn.build(form), {
+            'key1': 'value1',
+            'key2': 'value2',
+            'rkey': 'rvalue1',
+            'chkkey': 'chkvalue2',
+          });
+        });
+        it('should build object only specified names', function() {
+          chai.assert.deepEqual(cmn.build(form, ['key1', 'rkey']), {
+            'key1': 'value1',
+            'rkey': 'rvalue1',
+          });
+          chai.assert.deepEqual(cmn.build(form, ['key2', 'chkkey']), {
+            'key2': 'value2',
+            'chkkey': 'chkvalue2',
+          });
+          chai.assert.deepEqual(cmn.build(form, []), {});
+        });
+      });
+    </script>
+    <script>
+      describe('cmn.on()', function() {
+        it('should call callback function on event', function() {
+          return new Promise(function(resolve) {
+            var button = cmn.tag('button', document.body);
+            cmn.on(button, 'click', function() {
+              try {
+                chai.assert.equal(this, button);
+                document.body.removeChild(button);
+                resolve('clicked');
+              } catch(ex) {
+                reject(ex);
+              }
+            });
+            setTimeout(function() {
+              button.click();
+            }, 0);
+          });
+        });
+      });
+      describe('cmn.click()', function() {
+        it('should call callback function on click', function() {
+          return new Promise(function(resolve, reject) {
+            var button = cmn.tag('button', document.body);
+            cmn.click(button, function() {
+              try {
+                chai.assert.equal(this, button);
+                document.body.removeChild(button);
+                resolve('clicked');
+              } catch(ex) {
+                reject(ex);
+              }
+            });
+            setTimeout(function() {
+              button.click();
+            }, 0);
+          });
+        });
+      });
+    </script>
+    <script class="mocha-exec">
+      mocha.run();
+    </script>
   </body>
 </html>

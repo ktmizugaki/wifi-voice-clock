@@ -4,6 +4,7 @@ use warnings;
 use File::Basename;
 use HTTP::Daemon;
 use HTTP::Status;
+use JSON;
 use Encode qw(decode);
 
 $ENV{PATH} = '/bin:/usr/bin';
@@ -15,8 +16,20 @@ our @HANDLERS = ();
 
 sub cmn_test_handler {
     my ($c, $req) = @_;
-    if ($req->method eq 'GET' && $req->uri->path eq '/') {
-        return $c->send_file_response($cmn_path.'/cmn-test.html');
+    if ($req->method eq 'GET' && $req->uri->path eq '/test') {
+        return $c->send_file_response($cmn_path.'/test.html');
+    }
+    if ($req->method eq 'GET' && $req->uri->path =~ m'^/test/test-get') {
+        my $json = '{"status":1,"path":"'.$req->uri->path.'","query":"'.($req->uri->query||'').'"}';
+        my $res = json_response($json);
+        $c->send_response($res);
+        return $res;
+    }
+    if ($req->method eq 'POST' && $req->uri->path =~ m'^/test/test-post') {
+        my $json = '{"status":1,"path":"'.$req->uri->path.'","contentType":"'.($req->header('Content-Type')||'').'","query":"'.($req->uri->query||'').'","body":'.JSON->new->allow_nonref->encode($req->decoded_content).'}';
+        my $res = json_response($json);
+        $c->send_response($res);
+        return $res;
     }
     return undef;
 }
@@ -147,7 +160,7 @@ $html_cmn = 1;
 
 if ($0 eq __FILE__) {
     add_handlers(\&cmn_test_handler, \&cmn_handler);
-    run_httpd(start_httpd());
+    run_httpd(start_httpd('test'));
 }
 
 1;

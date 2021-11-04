@@ -35,13 +35,13 @@ var cmn = {
     }
     return qvalues.join('&');
   },
-  el: function(id, el) {
+  el: function(id) {
     if (id instanceof HTMLElement) return id;
-    return (el||document).getElementById(id);
+    return document.getElementById(id);
   },
   tag: function(tag, parent) {
     var el = document.createElement(tag);
-    if (parent) parent.appendChild(el);
+    if (parent) this.el(parent).appendChild(el);
     return el;
   },
   text: function(string, parent) {
@@ -50,7 +50,7 @@ var cmn = {
     return el;
   },
   shown: function(el) {
-    return this.el(el).classList.contains('hidden');
+    return !this.el(el).classList.contains('hidden');
   },
   show: function(el, show) {
     this.cls(el, 'hidden', !show);
@@ -64,10 +64,19 @@ var cmn = {
       el.classList.remove(cls);
     }
   },
+  modalShown: function() {
+    var els = document.getElementsByClassName('modal');
+    for (var i = 0; i < els.length; i++) {
+      if (this.shown(els[i])) {
+        return true;
+      }
+    }
+    return false;
+  },
   modal: function(el, show) {
     if (show === void 0) show = true;
-    this.cls(this.el(el), 'hidden', !show);
-    this.cls(document.body, 'modal-shown', document.querySelectorAll('.modal:not(.hidden)').length>0);
+    this.show(el, show);
+    this.cls(document.body, 'modal-shown', this.modalShown());
   },
   val: function(form, name, value) {
     var els = this.el(form).elements;
@@ -106,7 +115,7 @@ var cmn = {
   click: function(el, fn) {
     this.on(el, 'click', function(ev) {
       ev.preventDefault();
-      fn(ev);
+      fn.call(this, ev);
     });
   },
   _: 0

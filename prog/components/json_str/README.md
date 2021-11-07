@@ -34,7 +34,7 @@ puts(json_str_finalize(str));
 delete_json_str(str);
 ```
 
-above will generate following JSON from [json api example][https://jsonapi.org/format/#fetching-resources-responses]
+above will generate following JSON from [json api example](https://jsonapi.org/format/#fetching-resources-responses)
 ```json
 {"links":{"self":"http://example.com/articles"},"data":[{"type":"articles","id":1,"attributes":{"title":"JSON:API paints my bikeshed!"}},{"type":"articles","id":2,"attributes":{"title":"Rails is Omakase"}}]}
 ```

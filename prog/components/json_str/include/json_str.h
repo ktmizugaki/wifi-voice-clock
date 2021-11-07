@@ -24,18 +24,24 @@
 extern "C" {
 #endif
 
+/**
+ * @file
+ * simple JSON string builder in C
+ */
+
+/** obfuscated type building JSON string */
 typedef struct json_str json_str_t;
 
-#define JSON_STR_OK                 0
-#define JSON_STR_FAIL               -1
-#define JSON_STR_ENOMEM             1
-#define JSON_STR_ERR_KEY_REQUIRED   2
-#define JSON_STR_ERR_KEY_NOTALLOWED 3
-#define JSON_STR_ERR_TOO_DEEP       4
-#define JSON_STR_ERR_NOT_COMPOUND   10
-#define JSON_STR_ERR_NOT_STRING     11
-#define JSON_STR_ERR_NOT_ARRAY      12
-#define JSON_STR_ERR_NOT_OBJECT     13
+#define JSON_STR_OK                 0   /**< success */
+#define JSON_STR_FAIL               -1  /**< generic error */
+#define JSON_STR_ENOMEM             1   /**< failed to extend internal buffer */
+#define JSON_STR_ERR_KEY_REQUIRED   2   /**< key is NULL when required. key is required for object. */
+#define JSON_STR_ERR_KEY_NOTALLOWED 3   /**< key is not NULL when not allowed. key is not allowed for array. */
+#define JSON_STR_ERR_TOO_DEEP       4   /**< object or array is nested too deeply */
+#define JSON_STR_ERR_NOT_COMPOUND   10  /**< state is not appropreate for adding value. */
+#define JSON_STR_ERR_NOT_STRING     11  /**< tryied to append/end string without beginning string */
+#define JSON_STR_ERR_NOT_ARRAY      12  /**< tryied to end array without beginning array */
+#define JSON_STR_ERR_NOT_OBJECT     13  /**< tryied to end object without beginning object */
 
 #define JSON_STR_CHECK(expr, err, onerror) do {\
         if ((err = expr) != JSON_STR_OK) { onerror; } \
@@ -60,11 +66,12 @@ typedef struct json_str json_str_t;
 extern json_str_t *new_json_str(size_t required);
 /**
  * @brief release memory of JSON string buffer.
- * @param[in]   str     JSON string buffer returned from new_json_str.
+ * @param[in]   str     JSON string buffer returned from @ref new_json_str.
  */
 extern void delete_json_str(json_str_t *str);
 /**
  * @brief null terminate JSON string buffer.
+ * @note This can be called multiple times to get JSON string.
  * @param[in]   str     constructrd JSON string buffer.
  * @return null-termibated JSON string or NULL if invalid state.
  */
@@ -140,7 +147,7 @@ extern int json_str_add_string(json_str_t *str, const char *key, const char *val
  * @param[in]   required    specify approximate size of string which is going to be added.
  *                          specify 0 if not known.
  * @return JSON_STR_OK on success.
- * @note call json_str_end_string when done.
+ * @note call @ref json_str_end_string when done.
  */
 extern int json_str_begin_string(json_str_t *str, const char *key, size_t required);
 /**
@@ -148,12 +155,12 @@ extern int json_str_begin_string(json_str_t *str, const char *key, size_t requir
  * @param[in]   str     JSON string buffer.
  * @param[in]   value   string.
  * @return JSON_STR_OK on success.
- * @note must be called between json_str_begin_string and json_str_end_string when done.
+ * @note must be called between @ref json_str_begin_string and @ref json_str_end_string.
  * @note string will be escaped while adding to buffer if necessary.
  */
 extern int json_str_append_string(json_str_t *str, const char *value);
 /**
- * @brief ends bulk adding of string started by json_str_begin_string.
+ * @brief ends bulk adding of string started by @ref json_str_begin_string.
  * @param[in]   str     JSON string buffer.
  * @return JSON_STR_OK on success.
  */
@@ -164,11 +171,11 @@ extern int json_str_end_string(json_str_t *str);
  * @param[in]   key     specify key string when adding value to object.
                         must be NULL when not adding to object.
  * @return JSON_STR_OK on success.
- * @note call json_str_end_array to close array.
+ * @note call @ref json_str_end_array to close array.
  */
 extern int json_str_begin_array(json_str_t *str, const char *key);
 /**
- * @brief close array opend by json_str_begin_array.
+ * @brief close array opened by @ref json_str_begin_array.
  * @param[in]   str     JSON string buffer.
  * @return JSON_STR_OK on success.
  */
@@ -179,11 +186,11 @@ extern int json_str_end_array(json_str_t *str);
  * @param[in]   key     specify key string when adding value to object.
                         must be NULL when not adding to object.
  * @return JSON_STR_OK on success.
- * @note call json_str_end_object to close object.
+ * @note call @ref json_str_end_object to close object.
  */
 extern int json_str_begin_object(json_str_t *str, const char *key);
 /**
- * @brief close object opend by json_str_begin_object.
+ * @brief close object opened by @ref json_str_begin_object.
  * @param[in]   str     JSON string buffer.
  * @return JSON_STR_OK on success.
  */

@@ -21,7 +21,22 @@
 extern "C" {
 #endif
 
+/**
+ * @file
+ * synchronize clock with ntp server.
+ */
+
+/**
+ * @brief start sntp process.
+ * @note device must be connected to network before calling this function.
+ * @param[in] ntp_server    address of ntp server to synchronize with.
+ * @return ESP_OK when successfully started sntp process.
+ */
 extern esp_err_t clock_sync_sntp_start(const char *ntp_server);
+/**
+ * @brief stop sntp process.
+ * @return ESP_OK.
+ */
 extern esp_err_t clock_sync_sntp_stop(void);
 
 #ifdef __cplusplus

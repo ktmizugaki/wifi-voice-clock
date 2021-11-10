@@ -26,6 +26,8 @@
 
 #define TAG "clock"
 
+#define CLOCK_THRESHOLD_MS  10
+
 ESP_EVENT_DEFINE_BASE(CLOCK);
 
 struct clock_state {
@@ -67,8 +69,9 @@ static void clock_task(void*arg)
             gettimeofday(&tv, NULL);
         }
         clock_event_post(CLOCK_EVENT_SECOND, &curr_sec, sizeof(curr_sec));
-        esp_event_loop_run(s_clock_state.loop, 300/portTICK_PERIOD_MS);
+        esp_event_loop_run(s_clock_state.loop, 0);
         clock_sync_sntp_process();
+        esp_event_loop_run(s_clock_state.loop, 300/portTICK_PERIOD_MS);
     }
 }
 

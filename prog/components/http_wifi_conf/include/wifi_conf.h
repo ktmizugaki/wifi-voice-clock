@@ -22,12 +22,39 @@
 extern "C" {
 #endif
 
+/**
+ * @file
+ * wifi connection conf.
+ */
+
+/** max length of ntp server address. */
 #define WIFI_CONF_NTP_SERVER_LENGTH 22
 
+/**
+ * @brief check if wifi conf is configured.
+ * @return true if wifi conf is configured.
+ */
 extern bool wifi_conf_configured(void);
+/**
+ * @brief try to connect to any configured SSID.
+ * @return ESP_OK if starting to connect.
+ */
 extern esp_err_t wifi_conf_connect(void);
+/**
+ * @brief try to connect to specified SSID.
+ * @return ESP_OK if starting to connect.
+ */
 extern esp_err_t wifi_conf_connect_direct(const char *ssid);
 
+/**
+ * @brief get configured ntp server for current SSID.
+ * copy ntp server to buffer if connected to wifi and ntp server is configured
+ * for connected SSID.
+ * @param[out] ntp  buffer to set ntp address, should be at least @ref WIFI_CONF_NTP_SERVER_LENGTH.
+ * @return
+ *  - ESP_OK when stored ntp server to ntp.
+ *  - ESP_ERR_WIFI_NOT_CONNECT if not connected to wifi.
+ */
 extern esp_err_t wifi_conf_get_ntp(char ntp[WIFI_CONF_NTP_SERVER_LENGTH]);
 
 #ifdef __cplusplus

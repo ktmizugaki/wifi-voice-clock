@@ -294,8 +294,14 @@ esp_err_t simple_wifi_scan(void)
 
 enum simple_wifi_scan_state simple_wifi_get_scan_result(int *ap_num, const void **ap)
 {
-    xSemaphoreTake(s_scan_result_mutex, portMAX_DELAY);
-    enum simple_wifi_scan_state state = simple_scan_state;
+    enum simple_wifi_scan_state state;
+    if (xSemaphoreTake(s_scan_result_mutex, 3000/portTICK_PERIOD_MS) != pdTRUE) {
+        ESP_LOGW(TAG, "simple_wifi_get_scan_result: lock failed");
+        *ap_num = 0;
+        *ap = NULL;
+        return SIMPLE_WIFI_SCAN_NONE;
+    }
+    state = simple_scan_state;
     if (simple_scan_state == SIMPLE_WIFI_SCAN_DONE && s_scan_records != NULL) {
         *ap_num = s_num_scan_result;
         *(wifi_ap_record_t**)ap = s_scan_records;

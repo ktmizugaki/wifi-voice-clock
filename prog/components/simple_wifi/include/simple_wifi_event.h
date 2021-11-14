@@ -23,6 +23,12 @@
 extern "C" {
 #endif
 
+/**
+ * @file
+ * events used in simple_wifi.
+ */
+
+/** simple_wifi events */
 typedef enum {
     SIMPLE_WIFI_EVENT_SCAN_DONE,                /**< ESP32 finish scanning AP */
     SIMPLE_WIFI_EVENT_STA_CONNECTED,            /**< ESP32 station connected to AP */
@@ -33,6 +39,7 @@ typedef enum {
     SIMPLE_WIFI_EVENT_SOFTAP_STOP,              /**< ESP32 soft-AP stop */
 } simple_wifi_event_t;
 
+/** event base of simple wifi */
 ESP_EVENT_DECLARE_BASE(SIMPLE_WIFI_EVENT);
 
 #ifdef __cplusplus

@@ -190,7 +190,7 @@ esp_err_t alarm_init(void)
 
 esp_err_t alarm_save(int index)
 {
-    if (index < -1) {
+    if (index == -1) {
         return alarm_save_all();
     } else {
         if (index < 0 || index >= NUM_ALARM) {

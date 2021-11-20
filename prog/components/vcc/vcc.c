@@ -28,11 +28,34 @@
 
 #define TAG "vcc"
 
+#ifndef CONFIG_VCC_HISIDE_R
+#define CONFIG_VCC_HISIDE_R     10
+#endif
+#ifndef CONFIG_VCC_LOWSIDE_R
+#define CONFIG_VCC_LOWSIDE_R    10
+#endif
+#ifndef CONFIG_VCC_MAX
+#define CONFIG_VCC_MAX          3300
+#endif
+
 #define NUMBER_OF_SAMPLES   64
+
+#define VCC_TOTAL_R         (CONFIG_VCC_HISIDE_R + CONFIG_VCC_LOWSIDE_R)
+#define ADC_TO_VCC(adc)     ((adc) * VCC_TOTAL_R / CONFIG_VCC_LOWSIDE_R)
+#define VCC_ADC_MAX         (CONFIG_VCC_MAX * CONFIG_VCC_LOWSIDE_R / VCC_TOTAL_R)
+#if VCC_ADC_MAX <= 950
+#define VCC_ATTEN   ADC_ATTEN_DB_0
+#elif VCC_ADC_MAX <= 1250
+#define VCC_ATTEN   ADC_ATTEN_DB_2_5
+#elif VCC_ADC_MAX <= 1750
+#define VCC_ATTEN   ADC_ATTEN_DB_6
+#else
+#define VCC_ATTEN   ADC_ATTEN_DB_11
+#endif /* VCC_ADC_MAX */
 
 static const adc2_channel_t ADC2_CHANNEL = (adc2_channel_t)CONFIG_VCC_ADC2_CHANNEL;
 static const uint32_t DEFAULT_VREF = CONFIG_VCC_DEFAULT_VREF;
-static const adc_atten_t ATTEN = ADC_ATTEN_DB_6;
+static const adc_atten_t ATTEN = VCC_ATTEN;
 static const gpio_num_t VCC_PIN = (gpio_num_t)CONFIG_VCC_PIN;
 static const int64_t CACHE_LIFETIME = 60*1000000;
 
@@ -123,7 +146,15 @@ esp_err_t vcc_read(int *vcc, bool nocache)
     gpio_set_level(VCC_PIN, 0);
 
     s_last_measure_time = esp_timer_get_time();
-    *vcc = s_last_vcc = esp_adc_cal_raw_to_voltage(sum, &s_adc_chars) * 2;
+    s_last_vcc = ADC_TO_VCC(esp_adc_cal_raw_to_voltage(sum, &s_adc_chars));
+    if (sum >= 4000) {
+#if CONFIG_VCC_MAX < 10000
+        s_last_vcc = 9999;
+#else
+        s_last_vcc = 99999;
+#endif
+    }
+    *vcc = s_last_vcc;
     return ESP_OK;
 }
 
@@ -139,19 +170,41 @@ esp_err_t vcc_get_last_value(int *vcc)
     return ESP_OK;
 }
 
+#if CONFIG_VCC_MAX >= 3700
+#define VCC_VOLT_DECREASING 3600
+#define VCC_VOLT_DECREASING2    3400
+#define VCC_VOLT_WARNING    3200
+#define VCC_VOLT_CRITICAL   3000
+#elif CONFIG_VCC_MAX > 3300
+#define VCC_VOLT_DECREASING  (CONFIG_VCC_MAX - 70)
+#define VCC_VOLT_DECREASING2 (CONFIG_VCC_MAX - 140)
+#define VCC_VOLT_WARNING (CONFIG_VCC_MAX - 300)
+#define VCC_VOLT_CRITICAL 2900
+#else
+#define VCC_VOLT_DECREASING  3230
+#define VCC_VOLT_DECREASING2 3160
+#define VCC_VOLT_WARNING 3000
+#define VCC_VOLT_CRITICAL 2900
+#endif
+
 vcc_level_t vcc_get_level(bool nocache)
 {
     int vcc;
     if (vcc_read(&vcc, nocache) != ESP_OK) {
         return VCC_LEVEL_UNKNOWN;
     }
-    if (vcc > 3230) {
+    return vcc_to_level(vcc);
+}
+
+vcc_level_t vcc_to_level(int vcc)
+{
+    if (vcc > VCC_VOLT_DECREASING) {
         return VCC_LEVEL_OK;
-    } else if (vcc > 3160) {
+    } else if (vcc >= VCC_VOLT_DECREASING2) {
         return VCC_LEVEL_DECREASING;
-    } else if (vcc > 3000) {
+    } else if (vcc >= VCC_VOLT_WARNING) {
         return VCC_LEVEL_DECREASING2;
-    } else if (vcc > 2900) {
+    } else if (vcc >= VCC_VOLT_CRITICAL) {
         return VCC_LEVEL_WARNING;
     } else {
         return VCC_LEVEL_CRITICAL;

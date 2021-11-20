@@ -77,6 +77,13 @@ extern esp_err_t vcc_get_last_value(int *vcc);
  * @return one of @ref vcc_level_t.
  */
 extern vcc_level_t vcc_get_level(bool nocache);
+/**
+ * @brief map voltage to battery level.
+ *
+ * @param[in]  vcc  voltage of power.
+ * @return one of @ref vcc_level_t.
+ */
+extern vcc_level_t vcc_to_level(int vcc);
 
 #if CONFIG_VCC_CHARGE_STAT_PIN >= 0
 /** charging state. */

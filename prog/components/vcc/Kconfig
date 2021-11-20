@@ -19,7 +19,25 @@ config VCC_PIN
     int "VCC pin"
     default 5
     help
-        Pin to output vcc.
+        Pin to output/enable vcc.
+
+config VCC_HISIDE_R
+    int "High side resister value"
+    default 10
+    help
+        Resister value between ADC pin and Vcc.
+
+config VCC_LOWSIDE_R
+    int "Low side resister value"
+    default 10
+    help
+        Resister value between ADC pin and GND.
+
+config VCC_MAX
+    int "Maximum Vcc voltage"
+    default 3300
+    help
+        Maximum Vcc voltage in mV.
 
 config VCC_DEFAULT_VREF
     int "Default Vref"

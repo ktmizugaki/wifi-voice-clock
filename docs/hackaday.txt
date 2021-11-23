@@ -52,6 +52,11 @@ To save energy, device is usually in deep sleep state and display is off.
 1x Small Speaker
 
 # Logs
+## Add alarm functionality
+<p>Alarm and deep sleep functionality is added. Also say time is implemented.<br>It is working as alarm clock for 2 weeks now.</p>
+<p>Here is a demo video for alarm and say time.</p>
+<div class="video-container"><iframe src="//www.youtube.com/embed/Gv8YKZizgJQ" allowfullscreen="" width="300" height="248" frameborder="0"></iframe></div>
+
 ## Implemented display
 <p>Show SSID and password while in soft-AP mode.</p>
 <figure><img src="https://cdn.hackaday.io/images/9159631633348369745.jpg" data-image="1633348370404"></figure>

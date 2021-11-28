@@ -30,6 +30,7 @@
 #include <http_html_cmn.h>
 #include <json_str.h>
 
+#include "spiffs_upd.h"
 #include "http_firmware.h"
 
 #define TAG "firmware"
@@ -116,7 +117,7 @@ static esp_err_t http_get_partinfo_handler(httpd_req_t *req)
     } else {
         appsize = 0;
     }
-    partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, NULL);
+    partition = spiffs_upd_find_partition(NULL);
     if (partition != NULL) {
         spiffssize = partition->size;
     } else {
@@ -266,14 +267,127 @@ static esp_err_t http_post_update_handler(httpd_req_t *req)
     return err;
 }
 
+static esp_err_t update_spiffs(httpd_req_t *req, ota_work_t *work)
+{
+    esp_ota_handle_t handle;
+    char *buf;
+    int recv_size;
+    int remaining_size;
+    int64_t start_time, feedwdt_time;
+    esp_err_t err;
+
+    buf = malloc(BUF_SIZE);
+    if (buf == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+
+    ESP_LOGI(TAG, "Start SPIFFS update");
+    handle = 0;
+    err = spiffs_upd_begin(work->partition, work->image_len, &handle);
+    if (err != ESP_OK) {
+        return ESP_FAIL;
+    }
+
+    start_time = feedwdt_time = esp_timer_get_time();
+    vTaskDelay(1);
+
+    remaining_size = work->image_len;
+    while (remaining_size > 0) {
+        recv_size = MIN(remaining_size, BUF_SIZE);
+
+        recv_size = httpd_req_recv(req, buf, recv_size);
+        if (recv_size <= 0) {
+            err = ESP_ERR_TIMEOUT;
+            goto fail;
+        }
+
+        err = ESP_ERROR_CHECK_WITHOUT_ABORT(spiffs_upd_write(handle, buf, recv_size));
+        if (err != ESP_OK) {
+            goto fail;
+        }
+
+        remaining_size -= recv_size;
+        if (esp_timer_get_time() - feedwdt_time >= (CONFIG_TASK_WDT_TIMEOUT_S*1000000)/2) {
+            feedwdt_time = esp_timer_get_time();
+            vTaskDelay(1);
+        }
+    }
+
+    err = ESP_ERROR_CHECK_WITHOUT_ABORT(spiffs_upd_end(handle));
+    handle = 0;
+    if (err != ESP_OK) {
+        goto fail;
+    }
+
+    work->elapsed = esp_timer_get_time() - start_time;
+    ESP_LOGI(TAG, "Finished writing spiffs.");
+    free(buf);
+    return ESP_OK;
+
+fail:
+    if (handle != 0) {
+        spiffs_upd_end(handle);
+    }
+    ESP_LOGI(TAG, "spiffs update failed");
+    free(buf);
+    return err;
+}
+
 static esp_err_t http_post_spiffs_handler(httpd_req_t *req)
 {
-    const char *json;
+    ota_work_t work;
+    char json[96];
+    esp_err_t err;
 
-    json = "{\"status\":0,\"message\":\"Not implemented yet\"}";
+    work.partition = spiffs_upd_find_partition(NULL);
+    if (work.partition == NULL) {
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
+    }
+    if (work.partition->encrypted) {
+        return http_cmn_send_error_json(req, HTTP_CMN_FAIL);
+    }
+    work.image_len = req->content_len;
 
+    ESP_LOGI(TAG, "target partition: %.16s", work.partition->label);
+
+    if (work.image_len == 0) {
+        return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Content-Length is required\"}");
+    }
+    if (work.image_len < work.partition->size) {
+        return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Image is too small\"}");
+    }
+    if (work.image_len > work.partition->size) {
+        return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Image is too large\"}");
+    }
+
+    if (!is_octet_stream(req)) {
+        if (httpd_req_get_hdr_value_len(req, "Content-Type") == 0) {
+            return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Content-Type is required\"}");
+        } else {
+            return send_bad_request_json(req, "{\"status\":-1,\"message\":\"Unsupported Content-Type\"}");
+        }
+    }
+
+    err = update_spiffs(req, &work);
+
+    if (err != ESP_OK) {
+        if (err == ESP_ERR_TIMEOUT) {
+            http_cmn_send_error_json(req, HTTP_CMN_ERR_SOCK_TIMEOUT);
+        } else if (err == ESP_ERR_OTA_VALIDATE_FAILED) {
+            http_cmn_send_error_json(req, HTTP_CMN_ERR_INVALID_REQ);
+        } else {
+            http_cmn_send_error_json(req, err);
+        }
+        return ESP_FAIL;
+    }
+
+    snprintf(json, sizeof(json), "{\"status\":-1,\"message\":\"SPIFFS updated in %d.%06d sec\\nRebooting...\"}",
+        (int)(work.elapsed/1000000), (int)(work.elapsed%1000000));
     httpd_resp_set_type(req, HTTPD_TYPE_JSON);
-    return httpd_resp_sendstr(req, json);
+    err = httpd_resp_sendstr(req, json);
+
+    xTaskCreate(ota_restart_task, "ota_restart_task", 8*1024, NULL, 10, NULL);
+    return err;
 }
 
 static esp_err_t http_firmware_handler(httpd_req_t *req)

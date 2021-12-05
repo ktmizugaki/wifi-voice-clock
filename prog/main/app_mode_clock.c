@@ -48,9 +48,11 @@ static void update_clock(struct clock_mode_state *state)
     char buf_date[11], buf_time[11];
     int w, h;
     clock_localtime(&tm);
-    strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
-    strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
-    printf("Time is: %s %s\n", buf_date, buf_time);
+    if (LOG_LOCAL_LEVEL >= ESP_LOG_INFO) {
+        strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
+        strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
+        printf("Time is: %s %s\n", buf_date, buf_time);
+    }
     if (state->date_on >= 0) {
         gfx_set_fg_color(LCD, COLOR_BLACK);
         gfx_text_get_bounds(LCD, &font_shinonome14, LANG_DIGITS, NULL, NULL, NULL, &h);

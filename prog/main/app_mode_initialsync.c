@@ -40,9 +40,11 @@ static void update_clock(void)
     char buf_date[11], buf_time[11];
     int w, h;
     clock_localtime(&tm);
-    strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
-    strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
-    printf("Time is: %s %s\n", buf_date, buf_time);
+    if (LOG_LOCAL_LEVEL >= ESP_LOG_INFO) {
+        strftime(buf_date, sizeof(buf_date), "%m/%d %a", &tm);
+        strftime(buf_time, sizeof(buf_time), "%H:%M:%S", &tm);
+        printf("Time is: %s %s\n", buf_date, buf_time);
+    }
     app_display_clock(&tm);
     gfx_text_get_bounds(LCD, &font_shinonome12, LANG_SYNCHRONIZING, NULL, NULL, &w, &h);
     gfx_text_puts_xy(LCD, &font_shinonome12, LANG_SYNCHRONIZING, (LCD_WIDTH-w)/2, LCD_HEIGHT*3/4-h/2);

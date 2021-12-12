@@ -88,11 +88,17 @@ esp_err_t simple_wifi_start(enum simple_wifi_mode mode)
         s_wifi_event_group = xEventGroupCreate();
         esp_event_loop_create_default();
     }
-    ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL) );
-    ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, event_handler, NULL) );
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
+
+    /*
+     * register handler after tcpip_adapter_set_default_wifi_handlers so that
+     * set_hostname work in WIFI_EVENT_STA_START/WIFI_EVENT_AP_START.
+     */
+    ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL) );
+    ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, event_handler, NULL) );
+
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 
     const wifi_country_t country = {.cc="JP", .schan=1, .nchan=14};
@@ -147,6 +153,38 @@ enum simple_wifi_mode simple_wifi_get_mode(void)
     return simple_wifi_mode;
 }
 
+static esp_err_t simple_wifi_set_hostname(tcpip_adapter_if_t tcpip_if)
+{
+    esp_err_t err;
+    wifi_interface_t wifi_if;
+    char hostname[SWIFI_SSID_LEN];
+    uint8_t mac[6];
+#if !LWIP_NETIF_HOSTNAME
+    ESP_LOGI(TAG, "lwip netif hostname may not be enabled");
+#endif
+    if (tcpip_if == TCPIP_ADAPTER_IF_STA) {
+        wifi_if = WIFI_IF_STA;
+    } else if (tcpip_if == TCPIP_ADAPTER_IF_AP) {
+        wifi_if = WIFI_IF_AP;
+    } else {
+        return ESP_ERR_INVALID_ARG;
+    }
+    err = esp_wifi_get_mac(wifi_if, mac);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to get mac for if%d: %#x", tcpip_if, err);
+        return err;
+    }
+    snprintf(hostname, sizeof(hostname),
+        SWIFI_IFNAME_PREFIX "-%02x%02x%02x%02x",
+        mac[2], mac[3], mac[4], mac[5]);
+    err = tcpip_adapter_set_hostname(tcpip_if, hostname);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to set hostname to if%d: %#x", tcpip_if, err);
+        return err;
+    }
+    ESP_LOGD(TAG, "Set hostname if%d: %s", tcpip_if, hostname);
+    return ESP_OK;
+}
 
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
@@ -156,6 +194,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             simple_sta_set_scan_result();
             break;
         case WIFI_EVENT_STA_START:
+            simple_wifi_set_hostname(TCPIP_ADAPTER_IF_STA);
             xEventGroupSetBits(s_wifi_event_group, STARTED_BIT);
             break;
         case WIFI_EVENT_STA_STOP:
@@ -192,6 +231,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             break;
         case WIFI_EVENT_AP_START:
             ESP_LOGD(TAG, "SoftAP start");
+            simple_wifi_set_hostname(TCPIP_ADAPTER_IF_AP);
             swifi_event_post(SOFTAP_START, NULL, 0);
             break;
         case WIFI_EVENT_AP_STOP:

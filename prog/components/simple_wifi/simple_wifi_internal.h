@@ -26,6 +26,12 @@
 extern "C" {
 #endif
 
+#ifdef CONFIG_SWIFI_IFNAME_PREFIX
+#define SWIFI_IFNAME_PREFIX CONFIG_SWIFI_IFNAME_PREFIX
+#else
+#define SWIFI_IFNAME_PREFIX "esp32"
+#endif
+
 extern enum simple_wifi_mode simple_wifi_mode;
 extern enum simple_wifi_connection_state simple_connection_state;
 extern int simple_sta_retry;

@@ -226,7 +226,7 @@ esp_err_t simple_sta_set_scan_result(void)
     simple_scan_state = SIMPLE_WIFI_SCAN_DONE;
 
     ESP_LOGV(TAG, "got %d ap records", ap_num);
-    if (ESP_LOG_VERBOSE >= LOG_LOCAL_LEVEL) {
+    if (LOG_LOCAL_LEVEL >= ESP_LOG_VERBOSE) {
         uint16_t ap_index;
         for (ap_index = 0; ap_index < ap_num; ap_index++) {
             wifi_ap_record_t *record = &records[ap_index];

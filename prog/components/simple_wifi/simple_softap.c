@@ -81,19 +81,13 @@ static esp_err_t load_password(char *password, size_t length, nvs_handle_t nvsh)
     return ESP_OK;
 }
 
-#ifdef CONFIG_SWIFI_SOFTAP_SSID_PREFIX
-#define SSID_PREFIX CONFIG_SWIFI_SOFTAP_SSID_PREFIX
-#else
-#define SSID_PREFIX "esp32"
-#endif
-
 esp_err_t simple_wifi_get_ssid(char ssid[SWIFI_SSID_LEN])
 {
     uint8_t mac[6];
     if (s_ssid[0] == 0) {
         ESP_ERROR_CHECK( esp_wifi_get_mac(WIFI_IF_AP, mac) );
         snprintf(s_ssid, sizeof(s_ssid),
-            SSID_PREFIX "-%02X%02X%02X%02X%02X%02X",
+            SWIFI_IFNAME_PREFIX "-%02X%02X%02X%02X%02X%02X",
             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     }
     strcpy(ssid, s_ssid);

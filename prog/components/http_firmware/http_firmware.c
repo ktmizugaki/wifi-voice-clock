@@ -32,6 +32,7 @@
 
 #include "spiffs_upd.h"
 #include "http_firmware.h"
+#include "http_firmware_update_callbacks.h"
 
 #define TAG "firmware"
 #define FIRMWARE_URI  "/firmware"
@@ -40,13 +41,8 @@
 #define BUF_SIZE    1024
 #define MIN_IMAGE_SIZE  0x8000
 
-static void ota_restart_task(void *arg)
-{
-    (void)arg;
-    vTaskDelay(3000 / portTICK_PERIOD_MS);
-    ESP_LOGI(TAG, "Restart due to OTA");
-    esp_restart();
-}
+static const firmware_update_callbacks_t default_update_callbacks;
+static const firmware_update_callbacks_t *s_update_callbacks = &default_update_callbacks;
 
 typedef struct {
     const esp_partition_t *partition;
@@ -59,6 +55,22 @@ static MAKE_EMBEDDED_HANDLER(http_firmware_html, "text/html")
 static esp_err_t send_bad_request_json(httpd_req_t *req, const char *json)
 {
     httpd_resp_set_status(req, "400 Bad Request");
+    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+    httpd_resp_sendstr(req, json);
+    return ESP_FAIL;
+}
+
+static esp_err_t send_precond_fail_json(httpd_req_t *req, enum firmware_update_result precond)
+{
+    const char *json;
+    if (precond == FIRMWARE_UPDATE_E_BUSY) {
+        json = "{\"status\":-1,\"message\":\"Busy\"}";
+    } else if (precond == FIRMWARE_UPDATE_E_LOWBATT) {
+        json = "{\"status\":-1,\"message\":\"Low battery\"}";
+    } else {
+        json = "{\"status\":-1,\"message\":\"Invalid state\"}";
+    }
+    httpd_resp_set_status(req, "200 OK");
     httpd_resp_set_type(req, HTTPD_TYPE_JSON);
     httpd_resp_sendstr(req, json);
     return ESP_FAIL;
@@ -213,9 +225,15 @@ fail:
 
 static esp_err_t http_post_update_handler(httpd_req_t *req)
 {
+    enum firmware_update_result precond;
     ota_work_t work;
     char json[96];
     esp_err_t err;
+
+    precond = s_update_callbacks->prestart();
+    if (precond != FIRMWARE_UPDATE_OK) {
+        return send_precond_fail_json(req, precond);
+    }
 
     work.partition = esp_ota_get_next_update_partition(NULL);
     if (work.partition == NULL) {
@@ -245,6 +263,7 @@ static esp_err_t http_post_update_handler(httpd_req_t *req)
         }
     }
 
+    s_update_callbacks->started();
     err = update_firmware(req, &work);
 
     if (err != ESP_OK) {
@@ -255,6 +274,7 @@ static esp_err_t http_post_update_handler(httpd_req_t *req)
         } else {
             http_cmn_send_error_json(req, err);
         }
+        s_update_callbacks->finished(FIRMWARE_UPDATE_E_FAIL);
         return ESP_FAIL;
     }
 
@@ -263,7 +283,8 @@ static esp_err_t http_post_update_handler(httpd_req_t *req)
     httpd_resp_set_type(req, HTTPD_TYPE_JSON);
     err = httpd_resp_sendstr(req, json);
 
-    xTaskCreate(ota_restart_task, "ota_restart_task", 8*1024, NULL, 10, NULL);
+    s_update_callbacks->finished(FIRMWARE_UPDATE_OK);
+
     return err;
 }
 
@@ -335,9 +356,15 @@ fail:
 
 static esp_err_t http_post_spiffs_handler(httpd_req_t *req)
 {
+    enum firmware_update_result precond;
     ota_work_t work;
     char json[96];
     esp_err_t err;
+
+    precond = s_update_callbacks->prestart();
+    if (precond != FIRMWARE_UPDATE_OK) {
+        return send_precond_fail_json(req, precond);
+    }
 
     work.partition = spiffs_upd_find_partition(NULL);
     if (work.partition == NULL) {
@@ -368,6 +395,7 @@ static esp_err_t http_post_spiffs_handler(httpd_req_t *req)
         }
     }
 
+    s_update_callbacks->started();
     err = update_spiffs(req, &work);
 
     if (err != ESP_OK) {
@@ -378,6 +406,7 @@ static esp_err_t http_post_spiffs_handler(httpd_req_t *req)
         } else {
             http_cmn_send_error_json(req, err);
         }
+        s_update_callbacks->finished(FIRMWARE_UPDATE_E_FAIL);
         return ESP_FAIL;
     }
 
@@ -386,7 +415,8 @@ static esp_err_t http_post_spiffs_handler(httpd_req_t *req)
     httpd_resp_set_type(req, HTTPD_TYPE_JSON);
     err = httpd_resp_sendstr(req, json);
 
-    xTaskCreate(ota_restart_task, "ota_restart_task", 8*1024, NULL, 10, NULL);
+    s_update_callbacks->finished(FIRMWARE_UPDATE_OK);
+
     return err;
 }
 
@@ -446,3 +476,36 @@ esp_err_t http_firmware_unregister(httpd_handle_t handle)
     httpd_unregister_uri_handler(handle, FIRMWARE_URI "*", HTTP_POST);
     return ESP_OK;
 }
+
+void http_firmware_set_update_callbacks(const firmware_update_callbacks_t *callbacks)
+{
+    s_update_callbacks = callbacks!=NULL? callbacks: &default_update_callbacks;
+}
+
+
+static void ota_restart_task(void *arg)
+{
+    (void)arg;
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Restart due to OTA");
+    esp_restart();
+}
+
+static enum firmware_update_result default_prestart(void)
+{
+    return FIRMWARE_UPDATE_OK;
+}
+static void default_started(void)
+{
+    /* nop */
+}
+static void default_finished(enum firmware_update_result result)
+{
+    xTaskCreate(ota_restart_task, "ota_restart_task", 8*1024, NULL, 10, NULL);
+}
+
+static const firmware_update_callbacks_t default_update_callbacks = {
+    &default_prestart,
+    &default_started,
+    &default_finished,
+};

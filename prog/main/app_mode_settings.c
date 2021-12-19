@@ -27,6 +27,7 @@
 #include <http_alarm_conf.h>
 #include <http_clock_conf.h>
 #include <http_firmware.h>
+#include <http_firmware_update_callbacks.h>
 #include <lan_manager.h>
 #include <audio.h>
 #include <alarm.h>
@@ -43,6 +44,35 @@
 #include "gen/lang.h"
 
 #define TAG "settings"
+
+static bool s_is_updating = false, s_is_exiting = false;
+
+static enum firmware_update_result update_prestart(void)
+{
+    if (s_is_updating || s_is_exiting) {
+        return FIRMWARE_UPDATE_E_BUSY;
+    }
+    if (vcc_get_level(false) >= VCC_LEVEL_DECREASING2) {
+        return FIRMWARE_UPDATE_E_LOWBATT;
+    }
+    return FIRMWARE_UPDATE_OK;
+}
+static void update_started(void)
+{
+    s_is_updating = true;
+    app_event_send_args(APP_EVENT_UPDATE, 0, 0);
+}
+static void update_finished(enum firmware_update_result result)
+{
+    s_is_updating = false;
+    app_event_send_args(APP_EVENT_UPDATE, 1, result);
+}
+
+static const firmware_update_callbacks_t update_callbacks = {
+    &update_prestart,
+    &update_started,
+    &update_finished,
+};
 
 static MAKE_EMBEDDED_HANDLER(index_html, "text/html")
 
@@ -95,6 +125,7 @@ static void start_settings_httpd(httpd_handle_t *httpd)
     ESP_ERROR_CHECK( http_alarm_conf_register(*httpd) );
     ESP_ERROR_CHECK( http_clock_conf_register(*httpd) );
     ESP_ERROR_CHECK( http_firmware_register(*httpd) );
+    http_firmware_set_update_callbacks(&update_callbacks);
 }
 
 app_mode_t app_mode_settings(void)
@@ -123,6 +154,8 @@ app_mode_t app_mode_settings(void)
     app_display_sfotap(LANG_REMOTE_MAINT);
     app_display_update();
 
+    s_is_updating = false;
+    s_is_exiting = false;
     start_settings_httpd(&httpd);
 
     while (true) {
@@ -133,6 +166,9 @@ app_mode_t app_mode_settings(void)
             case APP_EVENT_ACTION:
                 switch (event.arg0) {
                 case APP_ACTION_LEFT|APP_ACTION_FLAG_RELEASE:
+                    if (s_is_updating) {
+                        break;
+                    }
                     goto end;
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
                     if (misc_is_playing_alarm()) {
@@ -140,11 +176,35 @@ app_mode_t app_mode_settings(void)
                     }
                     break;
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
+                    if (s_is_updating) {
+                        break;
+                    }
+                    s_is_exiting = true;
                     next_mode = APP_MODE_SUSPEND;
                     goto end;
                 }
                 break;
             case APP_EVENT_CLOCK:
+                break;
+            case APP_EVENT_UPDATE:
+                app_display_clear();
+                gfx_text_puts_xy(LCD, &font_shinonome12, LANG_REMOTE_MAINT, 0, 0);
+                gfx_draw_hline(LCD, 0, 12, LCD_WIDTH-1, 12);
+                if (event.arg0 == 0) {
+                    gfx_text_puts_xy(LCD, &font_shinonome12, LANG_UPDATING, 0, 14);
+                } else if (event.arg0 == 1 && event.arg1 == 0) {
+                    gfx_text_puts_xy(LCD, &font_shinonome12, LANG_UPDATE_SUCCESS, 0, 14);
+                    gfx_text_puts_xy(LCD, &font_shinonome12, LANG_REBOOTING, 0, 28);
+                    s_is_exiting = true;
+                } else if (event.arg0 == 1) {
+                    gfx_text_puts_xy(LCD, &font_shinonome12, LANG_UPDATE_FAIL, 0, 14);
+                    gfx_text_puts_xy(LCD, &font_shinonome12, LANG_REBOOTING, 0, 28);
+                    s_is_exiting = true;
+                }
+                app_display_update();
+                if (s_is_exiting) {
+                    goto reboot;
+                }
                 break;
             default:
                 break;
@@ -156,4 +216,13 @@ end:
     httpd_stop(httpd);
     lan_manager_release_conn();
     return next_mode;
+
+reboot:
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    httpd_stop(httpd);
+    lan_manager_release_conn();
+
+    vTaskDelay(1500 / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Restart due to firmware update");
+    esp_restart();
 }

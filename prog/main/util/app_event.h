@@ -27,6 +27,7 @@ typedef enum {
     APP_EVENT_CLOCK,
     APP_EVENT_WIFI,
     APP_EVENT_SYNC,
+    APP_EVENT_UPDATE,
 } app_event_id_t;
 
 typedef struct {

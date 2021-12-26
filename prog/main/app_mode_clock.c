@@ -95,6 +95,12 @@ app_mode_t app_mode_clock(void)
                     audio_stop();
                     voice_saynow();
                     break;
+                case APP_ACTION_RIGHT|APP_ACTION_FLAG_RELEASE:
+                    state.on = 20;
+                    state.date_on = 8;
+                    app_display_on();
+                    update_clock(&state);
+                    break;
                 case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
                     if (misc_is_playing_alarm()) {
                         audio_stop();

@@ -52,6 +52,13 @@ To save energy, device is usually in deep sleep state and display is off.
 1x Small Speaker
 
 # Logs
+## Firmware update
+<p>Added firmware update to Web UI. Firmware can be updated by uploading file using browser or curl.</p>
+<p>I first tried to use multipart/form form but it turns out it is difficult to handle multipart/form data.</p>
+<p>I searched a bit and I found that javascript can be used to upload file without any encoding/encapsulation. So ESP32 simply writes recieved body to flash. This is same behavior as previous version, but I added callback functions to receive start/end of update and display start/end status.</p>
+<figure><img src="https://cdn.hackaday.io/images/1869931640507902152.jpg" data-image="1640507902654"><figcaption>updating</figcaption></figure>
+<figure><img src="https://cdn.hackaday.io/images/7091601640507902077.jpg" data-image="1640507902688"><figcaption>updated, restarting</figcaption></figure>
+
 ## Add alarm functionality
 <p>Alarm and deep sleep functionality is added. Also say time is implemented.<br>It is working as alarm clock for 2 weeks now.</p>
 <p>Here is a demo video for alarm and say time.</p>

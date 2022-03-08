@@ -114,12 +114,12 @@ app_mode_t app_mode_clock(void)
                     app_display_on();
                     update_clock(&state);
                     break;
-                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
                     if (misc_is_playing_alarm()) {
                         audio_stop();
                     }
                     return APP_MODE_SUSPEND;
-                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_RELEASE:
+                case APP_ACTION_MIDDLE|APP_ACTION_FLAG_LONG:
                     if (misc_is_playing_alarm()) {
                         audio_stop();
                     } else {

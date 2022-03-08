@@ -4,6 +4,7 @@ idf_component_register(SRCS "app_main.c" "app_mode_suspend.c"
                 "misc.c" "voice.c"
                 "util/app_wifi.c" "util/app_display.c" "util/app_clock.c" "util/app_switches.c" "util/app_event.c"
                 "util/sound.c" "util/power.c" "util/storage.c"
+                "gen/batt.bmp.c"
         PRIV_INCLUDE_DIRS "util"
         EMBED_FILES
                 data/alarm.wav

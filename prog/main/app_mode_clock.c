@@ -22,6 +22,7 @@
 
 #include <clock.h>
 #include <audio.h>
+#include <vcc.h>
 
 #include "app_event.h"
 #include "app_clock.h"
@@ -33,6 +34,7 @@
 #include "app_display.h"
 #include "app_display_clock.h"
 #include "gen/lang.h"
+#include "bitmaps/batt.bmp.h"
 
 #define TAG "main_clock"
 
@@ -55,11 +57,22 @@ static void update_clock(struct clock_mode_state *state)
     }
     if (state->date_on >= 0) {
         gfx_set_fg_color(LCD, COLOR_BLACK);
+        gfx_fill_rect(LCD, 0, 0, BATT_BMP_SUBWIDTH, BATT_BMP_SUBHEIGHT);
         gfx_text_get_bounds(LCD, &font_shinonome14, LANG_DIGITS, NULL, NULL, NULL, &h);
         gfx_fill_rect(LCD, 2, LCD_HEIGHT-h, LCD_WIDTH-2, LCD_HEIGHT);
     }
     app_display_clock(&tm);
     if (state->date_on > 0) {
+        vcc_charge_state_t state;
+        vcc_level_t level = vcc_get_level(false);
+        int index = level;
+        if (vcc_get_charge_state(&state) == ESP_OK && state == VCC_CHARG_CHARGING) {
+            index = 5;
+        }
+        if (index >= 0 && index < BATT_BMP_SUBIMG) {
+            gfx_draw_bitmap_part(LCD, &batt_bmp, 0, BATT_BMP_SUBHEIGHT*index,
+                0, 0, BATT_BMP_SUBWIDTH, BATT_BMP_SUBHEIGHT);
+        }
         strftime(buf_date, sizeof(buf_date), "%Y.", &tm);
         strftime(buf_time, sizeof(buf_time), "%m.%d", &tm);
         gfx_set_fg_color(LCD, COLOR_WHITE);

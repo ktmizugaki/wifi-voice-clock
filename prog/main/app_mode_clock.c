@@ -123,7 +123,7 @@ app_mode_t app_mode_clock(void)
                     if (misc_is_playing_alarm()) {
                         audio_stop();
                     } else {
-                        return APP_MODE_SETTINGS;
+                        return APP_MODE_MENU;
                     }
                     break;
                 default:

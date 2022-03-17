@@ -130,6 +130,7 @@ void app_main(void)
         case APP_MODE_INITIAL: s_mode = app_mode_initial(); break;
         case APP_MODE_INITIALSYNC: s_mode = app_mode_initialsync(); break;
         case APP_MODE_CLOCK: s_mode = app_mode_clock(); break;
+        case APP_MODE_MENU: s_mode = app_mode_menu(); break;
         case APP_MODE_SETTINGS: s_mode = app_mode_settings(); break;
         }
     }

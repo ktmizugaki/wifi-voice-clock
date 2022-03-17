@@ -19,23 +19,14 @@
 extern "C" {
 #endif
 
-typedef enum {
-    APP_MODE_SUSPEND,
-    APP_MODE_INITIAL,
-    APP_MODE_INITIALSYNC,
-    APP_MODE_CLOCK,
-    APP_MODE_MENU,
-    APP_MODE_SETTINGS,
-} app_mode_t;
+enum menu_result {
+    MENU_ERR = -1,
+    MENU_OK = 0,
+    MENU_EXIT,
+    MENU_SHUTDOWN,
+};
 
-extern app_mode_t app_mode_get_current(void);
-
-extern app_mode_t app_mode_suspend(void);
-extern app_mode_t app_mode_initial(void);
-extern app_mode_t app_mode_initialsync(void);
-extern app_mode_t app_mode_clock(void);
-extern app_mode_t app_mode_menu(void);
-extern app_mode_t app_mode_settings(void);
+extern enum menu_result menu_main(void);
 
 #ifdef __cplusplus
 }

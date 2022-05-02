@@ -52,6 +52,14 @@ To save energy, device is usually in deep sleep state and display is off.
 1x Small Speaker
 
 # Logs
+## Battery voltage measurement
+<p>Changed battery voltage measurement to measure input of voltage regulator battery voltage measurement using circuit from <a href="https://jeelabs.org/2013/05/17/zero-powe-battery-measurement/">https://jeelabs.org/2013/05/17/zero-powe-battery-measurement/</a>. Also display battery level on the clock screen.</p>
+<p>Previous version measured voltage output from GPIO pin so value is capped to 3.3V, which was enough to see if battery is too low but not so nice for displaying battery level.</p>
+<p>Fortunately it wasn't hard to modify - replace resitor between Vout and Vmes with BSS138, connect drain of BSS138 to new resistor, and connect the other side of the new resistor to vcc.</p>
+<figure><img src="https://cdn.hackaday.io/images/8546481651490254556.png" data-image="1651490254913"></figure>
+<figure><img src="https://cdn.hackaday.io/images/3008051651490244958.png" data-image="1651490245420"><figcaption>kicad image of the modification</figcaption></figure>
+<p>Unfortunately, measurement didn't work. It shows greater value than correct voltage. Modification was worked fine when tested with develeopment board. It turned out that ADC of the ESP32 of the clock seems to be broken. The adc pin reads as almost 0 as expected when connected to GND, but the adc pin reads as 4095 (maximum of 12bit) when it is left open.</p>
+
 ## Firmware update
 <p>Added firmware update to Web UI. Firmware can be updated by uploading file using browser or curl.</p>
 <p>I first tried to use multipart/form form but it turns out it is difficult to handle multipart/form data.</p>
